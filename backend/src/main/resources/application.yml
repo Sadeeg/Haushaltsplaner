@@ -17,19 +17,6 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
 
-  security:
-    oauth2:
-      client:
-        registration:
-          nextcloud:
-            provider: nextcloud
-            client-id: ${OAUTH_CLIENT_ID:}
-            client-secret: ${OAUTH_CLIENT_SECRET:}
-            scope: openid,profile,email
-        provider:
-          nextcloud:
-            issuer-uri: ${NEXTCLOUD_ISSUER_URI:}
-
 server:
   port: 8080
   servlet:
