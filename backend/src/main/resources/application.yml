@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: haushaltsplaner
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://db:5432/haushalt}
+    username: ${SPRING_DATASOURCE_USER:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  security:
+    oauth2:
+      client:
+        registration:
+          nextcloud:
+            provider: nextcloud
+            client-id: ${OAUTH_CLIENT_ID:}
+            client-secret: ${OAUTH_CLIENT_SECRET:}
+            scope: openid,profile,email
+        provider:
+          nextcloud:
+            issuer-uri: ${NEXTCLOUD_ISSUER_URI:}
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+telegram:
+  bot:
+    token: ${TELEGRAM_BOT_TOKEN:}
+
+logging:
+  level:
+    com.haushaltsplaner: INFO
+    org.springframework.security: INFO

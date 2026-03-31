@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-color: #1976d2;
+  --secondary-color: #424242;
+  --accent-color: #ff5722;
+  --success-color: #4caf50;
+  --warning-color: #ff9800;
+  --error-color: #f44336;
+  
+  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font-family);
+  background-color: #fafafa;
+  color: #212121;
+}
+
+body {
+  @apply antialiased;
+}
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+  
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn {
+  @apply px-4 py-2 rounded-lg font-medium transition-colors;
+  
+  &-primary {
+    @apply bg-blue-600 text-white hover:bg-blue-700;
+  }
+  
+  &-secondary {
+    @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
+  }
+  
+  &-danger {
+    @apply bg-red-600 text-white hover:bg-red-700;
+  }
+}
+
+.card {
+  @apply bg-white rounded-xl shadow-sm p-4;
+}
+
+.task-item {
+  @apply flex items-center gap-3 p-4 bg-white rounded-lg shadow-sm mb-2;
+  
+  .task-checkbox {
+    @apply w-6 h-6 rounded border-2 border-gray-300 flex items-center justify-center;
+    
+    &.completed {
+      @apply bg-green-500 border-green-500 text-white;
+    }
+  }
+  
+  .task-content {
+    @apply flex-1;
+    
+    .task-name {
+      @apply font-medium;
+    }
+    
+    .task-meta {
+      @apply text-sm text-gray-500;
+    }
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary-color: #90caf9;
+    --secondary-color: #e0e0e0;
+    --background-color: #121212;
+    --surface-color: #1e1e1e;
+  }
+  
+  body {
+    background-color: var(--background-color);
+    color: var(--secondary-color);
+  }
+  
+  .card, .task-item {
+    background-color: var(--surface-color);
+  }
+}
