@@ -28,6 +28,7 @@ export interface TaskTemplate {
   frequency: TaskFrequency;
   defaultPoints: number;
   completionPeriodDays: number | null;
+  assignedUserIds?: number[];
 }
 
 export interface ExclusionRule {

@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
-import { TaskTemplate, TaskFrequency } from '../../models/task.model';
+import { TaskTemplate, TaskFrequency, User } from '../../models/task.model';
 
 @Component({
   selector: 'app-templates',
@@ -14,7 +14,7 @@ import { TaskTemplate, TaskFrequency } from '../../models/task.model';
     <div class="templates-page">
       <header class="header">
         <h1>📝 Aufgaben-Vorlagen</h1>
-        <button class="btn-primary" (click)="showAddModal = true">+ Neu</button>
+        <button class="btn-primary" (click)="openAddModal()">+ Neu</button>
       </header>
 
       @if (loading) {
@@ -31,6 +31,13 @@ import { TaskTemplate, TaskFrequency } from '../../models/task.model';
                 <span class="template-meta">
                   {{ getFrequencyLabel(template.frequency) }} • {{ template.defaultPoints }} Pkt.
                 </span>
+                @if (template.assignedUserIds && template.assignedUserIds.length > 0) {
+                  <span class="template-users">
+                    👥 {{ template.assignedUserIds.length }} Person(en)
+                  </span>
+                } @else {
+                  <span class="template-users hint">👥 Alle</span>
+                }
               </div>
               <button class="delete-btn" (click)="deleteTemplate(template.id)">🗑️</button>
             </div>
@@ -51,7 +58,7 @@ import { TaskTemplate, TaskFrequency } from '../../models/task.model';
             <form (submit)="createTemplate($event)">
               <div class="form-group">
                 <label>Name</label>
-                <input type="text" [(ngModel)]="newTemplate.name" name="name" required>
+                <input type="text" [(ngModel)]="newTemplate.name" name="name" required placeholder="z.B. Kochen">
               </div>
               <div class="form-group">
                 <label>Häufigkeit</label>
@@ -65,6 +72,21 @@ import { TaskTemplate, TaskFrequency } from '../../models/task.model';
               <div class="form-group">
                 <label>Punkte</label>
                 <input type="number" [(ngModel)]="newTemplate.defaultPoints" name="points" min="1" value="1">
+              </div>
+              <div class="form-group">
+                <label>Wer soll diese Aufgabe machen?</label>
+                <div class="user-selection">
+                  @for (user of allUsers; track user.id) {
+                    <label class="user-checkbox">
+                      <input 
+                        type="checkbox"
+                        [checked]="isUserSelected(user.id)"
+                        (change)="toggleUser(user.id, $event)">
+                      <span class="user-name">{{ user.displayName || user.username }}</span>
+                    </label>
+                  }
+                </div>
+                <p class="hint">Leer lassen für alle Personen</p>
               </div>
               <div class="modal-actions">
                 <button type="button" class="btn-secondary" (click)="showAddModal = false">Abbrechen</button>
@@ -158,6 +180,16 @@ import { TaskTemplate, TaskFrequency } from '../../models/task.model';
       font-size: 0.85rem;
     }
     
+    .template-users {
+      font-size: 0.8rem;
+      color: #1976d2;
+      margin-top: 4px;
+      
+      &.hint {
+        color: #999;
+      }
+    }
+    
     .delete-btn {
       background: none;
       border: none;
@@ -191,6 +223,8 @@ import { TaskTemplate, TaskFrequency } from '../../models/task.model';
       border-radius: 16px;
       width: 90%;
       max-width: 400px;
+      max-height: 90vh;
+      overflow-y: auto;
       
       h2 {
         margin-bottom: 16px;
@@ -212,6 +246,42 @@ import { TaskTemplate, TaskFrequency } from '../../models/task.model';
         border: 1px solid #ddd;
         border-radius: 8px;
         font-size: 1rem;
+      }
+      
+      .hint {
+        font-size: 0.8rem;
+        color: #999;
+        margin-top: 4px;
+      }
+    }
+    
+    .user-selection {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    
+    .user-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #f5f5f5;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+      
+      &:hover {
+        background: #e0e0e0;
+      }
+      
+      input {
+        width: auto;
+      }
+      
+      .user-name {
+        font-weight: normal;
       }
     }
     
@@ -257,8 +327,10 @@ export class TemplatesComponent implements OnInit {
   private toast = inject(ToastService);
   
   templates: TaskTemplate[] = [];
+  allUsers: User[] = [];
   loading = true;
   showAddModal = false;
+  selectedUserIds: Set<number> = new Set();
   
   newTemplate: Partial<TaskTemplate> = {
     name: '',
@@ -268,6 +340,7 @@ export class TemplatesComponent implements OnInit {
 
   ngOnInit() {
     this.loadTemplates();
+    this.loadUsers();
   }
 
   get householdId(): number | null {
@@ -296,6 +369,40 @@ export class TemplatesComponent implements OnInit {
     });
   }
 
+  loadUsers() {
+    this.api.getAllUsers().subscribe({
+      next: (users) => {
+        this.allUsers = users;
+      },
+      error: () => {
+        this.allUsers = [];
+      }
+    });
+  }
+
+  openAddModal() {
+    this.selectedUserIds.clear();
+    this.newTemplate = { 
+      name: '', 
+      frequency: TaskFrequency.DAILY, 
+      defaultPoints: 1 
+    };
+    this.showAddModal = true;
+  }
+
+  isUserSelected(userId: number): boolean {
+    return this.selectedUserIds.has(userId);
+  }
+
+  toggleUser(userId: number, event: Event) {
+    const checked = (event.target as HTMLInputElement).checked;
+    if (checked) {
+      this.selectedUserIds.add(userId);
+    } else {
+      this.selectedUserIds.delete(userId);
+    }
+  }
+
   getFrequencyLabel(frequency: TaskFrequency): string {
     const labels: Record<TaskFrequency, string> = {
       [TaskFrequency.DAILY]: 'Täglich',
@@ -314,11 +421,19 @@ export class TemplatesComponent implements OnInit {
       return;
     }
     
-    this.api.createTemplate(householdId, this.newTemplate).subscribe({
+    // Set assigned user IDs if any selected
+    const templateData: any = {
+      ...this.newTemplate,
+      assignedUserIds: this.selectedUserIds.size > 0 
+        ? Array.from(this.selectedUserIds) 
+        : null
+    };
+    
+    this.api.createTemplate(householdId, templateData).subscribe({
       next: () => {
         this.toast.success('Vorlage erstellt!');
         this.showAddModal = false;
-        this.newTemplate = { name: '', frequency: TaskFrequency.DAILY, defaultPoints: 1 };
+        this.selectedUserIds.clear();
         this.loadTemplates();
       },
       error: () => {
