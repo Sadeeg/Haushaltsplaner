@@ -33,8 +33,3 @@ public class ExclusionRule {
     @Builder.Default
     private ExclusionType ruleType = ExclusionType.MUTUAL;
 }
-
-enum ExclusionType {
-    MUTUAL,      // Neither A nor B can have the same person
-    ONE_WAY      // If A, then not B (but reverse allowed)
-}

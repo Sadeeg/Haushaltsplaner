@@ -42,6 +42,11 @@ public class TaskController {
         return ResponseEntity.ok(taskService.getPendingTasks(householdId));
     }
 
+    @GetMapping("/household/{householdId}/week")
+    public ResponseEntity<List<TaskDto>> getWeeklyTasks(@PathVariable Long householdId) {
+        return ResponseEntity.ok(taskService.getTasksForWeek(householdId));
+    }
+
     @PostMapping("/household/{householdId}")
     public ResponseEntity<TaskDto> createTask(
             @PathVariable Long householdId,
@@ -66,6 +71,11 @@ public class TaskController {
 
     @GetMapping("/household/{householdId}/leaderboard")
     public ResponseEntity<List<LeaderboardEntry>> getLeaderboard(@PathVariable Long householdId) {
+        return ResponseEntity.ok(taskService.getLeaderboard(householdId));
+    }
+
+    @GetMapping("/leaderboard")
+    public ResponseEntity<List<LeaderboardEntry>> getGlobalLeaderboard(@RequestParam Long householdId) {
         return ResponseEntity.ok(taskService.getLeaderboard(householdId));
     }
 }

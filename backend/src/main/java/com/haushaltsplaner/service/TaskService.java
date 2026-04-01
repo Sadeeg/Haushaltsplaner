@@ -55,6 +55,18 @@ public class TaskService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<TaskDto> getTasksForWeek(Long householdId) {
+        LocalDate today = LocalDate.now();
+        LocalDate startOfWeek = today.minusDays(today.getDayOfWeek().getValue() - 1); // Monday
+        LocalDate endOfWeek = startOfWeek.plusDays(6); // Sunday
+        
+        return taskRepository.findByDueDateBetweenAndStatus(startOfWeek, endOfWeek, TaskStatus.PENDING)
+                .stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public TaskDto createTask(CreateTaskRequest request, Long householdId) {
         Household household = householdRepository.findById(householdId)
@@ -96,23 +108,29 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
         
-        task.setStatus(TaskStatus.SKIPPED);
+        // Skip: task goes to next eligible user for TODAY
+        // Original assignee gets no penalty, next person does it today
+        User nextUser = findNextEligibleUserForSkip(task);
         
-        // Find next eligible user and assign task
-        User nextUser = findNextEligibleUser(task);
         if (nextUser != null) {
+            // Create a new task for today assigned to next user
             Task newTask = Task.builder()
                     .name(task.getName())
                     .frequency(task.getFrequency())
-                    .dueDate(LocalDate.now().plusDays(1))
+                    .dueDate(LocalDate.now())
+                    .completionPeriodStart(task.getCompletionPeriodStart())
+                    .completionPeriodEnd(task.getCompletionPeriodEnd())
                     .status(TaskStatus.PENDING)
-                    .points(task.getPoints())
+                    .points(0) // No points for skipped task
                     .household(task.getHousehold())
                     .assignedUser(nextUser)
                     .taskTemplate(task.getTaskTemplate())
                     .build();
             taskRepository.save(newTask);
         }
+        
+        // Mark original task as skipped
+        task.setStatus(TaskStatus.SKIPPED);
         
         return toDto(taskRepository.save(task));
     }
@@ -122,8 +140,30 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
         
+        // Move: task moves to next day, original assignee still responsible tomorrow
         task.setStatus(TaskStatus.MOVED);
-        task.setDueDate(LocalDate.now().plusDays(1));
+        LocalDate originalDueDate = task.getDueDate() != null ? task.getDueDate() : LocalDate.now();
+        LocalDate tomorrow = originalDueDate.plusDays(1);
+        
+        // Create a new task for tomorrow with same assignee
+        Task movedTask = Task.builder()
+                .name(task.getName())
+                .frequency(task.getFrequency())
+                .dueDate(tomorrow)
+                .completionPeriodStart(tomorrow)
+                .completionPeriodEnd(tomorrow.plusDays(task.getTaskTemplate() != null && task.getTaskTemplate().getCompletionPeriodDays() != null ? 
+                        task.getTaskTemplate().getCompletionPeriodDays() : 1))
+                .status(TaskStatus.PENDING)
+                .points(task.getPoints())
+                .household(task.getHousehold())
+                .assignedUser(task.getAssignedUser())
+                .taskTemplate(task.getTaskTemplate())
+                .build();
+        
+        taskRepository.save(movedTask);
+        
+        // Mark original task as moved
+        task.setStatus(TaskStatus.MOVED);
         
         return toDto(taskRepository.save(task));
     }
@@ -158,16 +198,45 @@ public class TaskService {
                 .collect(Collectors.toList());
     }
 
-    private User findNextEligibleUser(Task task) {
+    private User findNextEligibleUserForSkip(Task task) {
         Household household = task.getHousehold();
         List<User> members = List.copyOf(household.getMembers());
         
         if (members.isEmpty()) return null;
 
-        // Simple round-robin: find current assignee and get next
+        // For skip: find the next user in rotation, skipping the current assignee
+        // Use fair rotation based on who did the task least recently
         User current = task.getAssignedUser();
-        int currentIndex = current != null ? members.indexOf(current) : -1;
-        int nextIndex = (currentIndex + 1) % members.size();
+        
+        // Get completed tasks for this template to determine fair rotation
+        List<Task> completedTasks = taskRepository.findByHouseholdIdAndStatus(household.getId(), TaskStatus.COMPLETED)
+                .stream()
+                .filter(t -> t.getTaskTemplate() != null && 
+                        t.getTaskTemplate().getId().equals(task.getTaskTemplate() != null ? task.getTaskTemplate().getId() : null))
+                .sorted((a, b) -> {
+                    LocalDate dateA = a.getDueDate() != null ? a.getDueDate() : LocalDate.MIN;
+                    LocalDate dateB = b.getDueDate() != null ? b.getDueDate() : LocalDate.MIN;
+                    return dateB.compareTo(dateA); // Most recent first
+                })
+                .collect(Collectors.toList());
+
+        if (completedTasks.isEmpty()) {
+            // No history, just pick next in simple rotation
+            int currentIndex = current != null ? members.indexOf(current) : -1;
+            int nextIndex = (currentIndex + 1) % members.size();
+            return members.get(nextIndex);
+        }
+
+        // Find who did it last and pick the next person
+        Task lastTask = completedTasks.get(0);
+        User lastAssignee = lastTask.getAssignedUser();
+        int lastIndex = lastAssignee != null ? members.indexOf(lastAssignee) : -1;
+        int nextIndex = (lastIndex + 1) % members.size();
+        
+        // Skip the current assignee (they are skipping this task)
+        if (members.get(nextIndex).getId().equals(current != null ? current.getId() : -1)) {
+            nextIndex = (nextIndex + 1) % members.size();
+        }
         
         return members.get(nextIndex);
     }
