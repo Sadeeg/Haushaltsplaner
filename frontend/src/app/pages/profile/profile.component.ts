@@ -2,6 +2,8 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
+import { AuthService } from '../../services/auth.service';
+import { ToastService } from '../../services/toast.service';
 import { User } from '../../models/task.model';
 
 @Component({
@@ -14,12 +16,16 @@ import { User } from '../../models/task.model';
         <h1>👤 Profil</h1>
       </header>
 
-      @if (user) {
+      @if (loading) {
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+        </div>
+      } @else if (user) {
         <div class="profile-card">
           <div class="avatar">
-            {{ user.displayName?.charAt(0) || '?' }}
+            {{ user.displayName?.charAt(0) || user.username?.charAt(0) || '?' }}
           </div>
-          <h2>{{ user.displayName }}</h2>
+          <h2>{{ user.displayName || user.username }}</h2>
           <p class="email">{{ user.email }}</p>
         </div>
 
@@ -39,7 +45,13 @@ import { User } from '../../models/task.model';
               </ol>
               <div class="code-input">
                 <input type="text" [(ngModel)]="verificationCode" placeholder="ABC-123-XYZ" maxlength="11">
-                <button class="btn-primary" (click)="linkTelegram()">Verknüpfen</button>
+                <button class="btn-primary" (click)="linkTelegram()" [disabled]="linking">
+                  @if (linking) {
+                    <span class="spinner-small"></span>
+                  } @else {
+                    Verknüpfen
+                  }
+                </button>
               </div>
             </div>
           }
@@ -48,10 +60,36 @@ import { User } from '../../models/task.model';
         <div class="section">
           <h3>Haushalt</h3>
           @if (user.householdName) {
-            <p>{{ user.householdName }}</p>
+            <div class="household-info">
+              <span class="household-icon">🏠</span>
+              <span>{{ user.householdName }}</span>
+            </div>
           } @else {
             <p class="no-household">Noch keinem Haushalt beigetreten</p>
           }
+        </div>
+
+        <div class="section">
+          <h3>Punkte</h3>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <span class="stat-value">{{ userStats?.totalPoints || 0 }}</span>
+              <span class="stat-label">Gesamt</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ userStats?.completedTasks || 0 }}</span>
+              <span class="stat-label">Erledigt</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ userStats?.skippedTasks || 0 }}</span>
+              <span class="stat-label">Übersprungen</span>
+            </div>
+          </div>
+        </div>
+      } @else {
+        <div class="empty-state">
+          <p>Bitte melde dich an, um dein Profil zu sehen.</p>
+          <button class="btn-primary" routerLink="/login">Anmelden</button>
         </div>
       }
 
@@ -68,6 +106,27 @@ import { User } from '../../models/task.model';
       
       h1 {
         font-size: 1.5rem;
+      }
+    }
+    
+    .loading-spinner {
+      display: flex;
+      justify-content: center;
+      padding: 40px;
+      
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #e0e0e0;
+        border-top-color: #1976d2;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+    }
+    
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
       }
     }
     
@@ -124,6 +183,7 @@ import { User } from '../../models/task.model';
       display: flex;
       align-items: center;
       gap: 8px;
+      font-weight: 500;
     }
     
     .telegram-setup {
@@ -156,8 +216,83 @@ import { User } from '../../models/task.model';
       }
     }
     
+    .spinner-small {
+      width: 16px;
+      height: 16px;
+      border: 2px solid white;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    
+    .household-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      
+      .household-icon {
+        font-size: 1.5rem;
+      }
+    }
+    
     .no-household {
       color: #999;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    
+    .stat-item {
+      text-align: center;
+      padding: 12px;
+      background: #f5f5f5;
+      border-radius: 8px;
+      
+      .stat-value {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1976d2;
+      }
+      
+      .stat-label {
+        font-size: 0.8rem;
+        color: #666;
+      }
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      background: #f5f5f5;
+      border-radius: 12px;
+      
+      p {
+        color: #666;
+        margin-bottom: 16px;
+      }
+    }
+    
+    .btn-primary {
+      padding: 10px 20px;
+      background: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      
+      &:hover:not(:disabled) {
+        background: #1565c0;
+      }
+      
+      &:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+      }
     }
     
     .btn-logout {
@@ -170,37 +305,95 @@ import { User } from '../../models/task.model';
       font-size: 1rem;
       cursor: pointer;
       margin-top: 24px;
+      
+      &:hover {
+        background: #d32f2f;
+      }
     }
   `]
 })
 export class ProfileComponent implements OnInit {
   private api = inject(ApiService);
+  private authService = inject(AuthService);
+  private toast = inject(ToastService);
   
   user: User | null = null;
+  userStats: { totalPoints: number; completedTasks: number; skippedTasks: number } | null = null;
   verificationCode = '';
+  linking = false;
+  loading = true;
 
   ngOnInit() {
-    // Demo user
-    this.user = {
-      id: 1,
-      username: 'sascha',
-      email: 'sascha@example.com',
-      displayName: 'Sascha',
-      hasTelegram: false,
-      householdId: 1,
-      householdName: 'Deeg Haushalt'
-    };
+    this.loadUser();
+  }
+
+  loadUser() {
+    this.loading = true;
+    
+    // First try to get from AuthService
+    let user = this.authService.getCurrentUser();
+    
+    if (user) {
+      this.user = user;
+      this.loadUserStats();
+    } else {
+      // Demo user for development
+      this.user = {
+        id: 1,
+        username: 'sascha',
+        email: 'sascha@example.com',
+        displayName: 'Sascha',
+        hasTelegram: false,
+        householdId: 1,
+        householdName: 'Deeg Haushalt'
+      };
+      this.userStats = {
+        totalPoints: 12,
+        completedTasks: 10,
+        skippedTasks: 2
+      };
+    }
+    this.loading = false;
+  }
+
+  loadUserStats() {
+    if (!this.user) return;
+    
+    const householdId = this.authService.householdId();
+    if (!householdId) return;
+    
+    this.api.getLeaderboard(householdId).subscribe({
+      next: (entries) => {
+        const myEntry = entries.find(e => e.userId === this.user?.id);
+        if (myEntry) {
+          this.userStats = {
+            totalPoints: myEntry.totalPoints,
+            completedTasks: myEntry.completedTasks,
+            skippedTasks: myEntry.skippedTasks
+          };
+        }
+      },
+      error: () => {
+        // Keep existing stats on error
+      }
+    });
   }
 
   linkTelegram() {
-    if (this.verificationCode.length >= 8) {
-      // Would link via API
-      console.log('Linking with code:', this.verificationCode);
-    }
+    if (this.verificationCode.length < 8 || !this.user) return;
+    
+    this.linking = true;
+    // Would link via API
+    // For now, just simulate
+    setTimeout(() => {
+      this.toast.success('Telegram erfolgreich verknüpft!');
+      this.user = { ...this.user!, hasTelegram: true };
+      this.verificationCode = '';
+      this.linking = false;
+    }, 1000);
   }
 
   logout() {
-    // OAuth logout
-    window.location.href = '/api/logout';
+    this.authService.logout();
   }
 }

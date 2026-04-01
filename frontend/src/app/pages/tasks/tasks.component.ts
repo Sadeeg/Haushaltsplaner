@@ -2,6 +2,8 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
+import { AuthService } from '../../services/auth.service';
+import { ToastService } from '../../services/toast.service';
 import { Task, TaskStatus, TaskFrequency, CreateTaskRequest } from '../../models/task.model';
 
 @Component({
@@ -28,7 +30,10 @@ import { Task, TaskStatus, TaskFrequency, CreateTaskRequest } from '../../models
       </div>
 
       @if (loading) {
-        <p>Lädt...</p>
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+          <p>Lädt...</p>
+        </div>
       } @else {
         <div class="task-list">
           @for (task of filteredTasks; track task.id) {
@@ -44,12 +49,16 @@ import { Task, TaskStatus, TaskFrequency, CreateTaskRequest } from '../../models
               <div class="task-content">
                 <span class="task-name">{{ task.name }}</span>
                 <span class="task-meta">
-                  {{ task.frequency }} • {{ task.dueDate | date:'d.M.' }} • {{ task.points }} Pkt.
+                  {{ getFrequencyLabel(task.frequency) }} • {{ task.points }} Pkt.
                 </span>
+                @if (task.completionPeriodEnd) {
+                  <span class="task-due">Fällig bis {{ task.completionPeriodEnd | date:'d.M.' }}</span>
+                }
               </div>
               <div class="task-actions">
-                <button class="action-btn" (click)="skipTask(task)">⏭️</button>
-                <button class="action-btn" (click)="moveTask(task)">📅</button>
+                @if (task.status === 'PENDING') {
+                  <button class="action-btn" (click)="showSkipModal(task)" title="Überspringen/Verschieben">⏭️</button>
+                }
               </div>
             </div>
           }
@@ -59,6 +68,7 @@ import { Task, TaskStatus, TaskFrequency, CreateTaskRequest } from '../../models
         </div>
       }
 
+      <!-- Add Task Modal -->
       @if (showAddModal) {
         <div class="modal-overlay" (click)="showAddModal = false">
           <div class="modal" (click)="$event.stopPropagation()">
@@ -89,6 +99,32 @@ import { Task, TaskStatus, TaskFrequency, CreateTaskRequest } from '../../models
           </div>
         </div>
       }
+
+      <!-- Skip/Verschieben Modal -->
+      @if (showSkipMoveModal && selectedTask) {
+        <div class="modal-overlay" (click)="showSkipMoveModal = false">
+          <div class="modal" (click)="$event.stopPropagation()">
+            <h2>{{ selectedTask.name }}</h2>
+            <p class="modal-description">Was möchtest du mit dieser Aufgabe machen?</p>
+            
+            <div class="skip-options">
+              <button class="option-btn" (click)="skipTask()">
+                <span class="option-icon">⏭️</span>
+                <span class="option-label">Überspringen</span>
+                <span class="option-desc">Aufgabe fällt weg, nächste Person übernimmt</span>
+              </button>
+              
+              <button class="option-btn" (click)="moveTask()">
+                <span class="option-icon">📅</span>
+                <span class="option-label">Verschieben</span>
+                <span class="option-desc">Aufgabe wird auf morgen verschoben</span>
+              </button>
+            </div>
+            
+            <button class="btn-secondary cancel-btn" (click)="showSkipMoveModal = false">Abbrechen</button>
+          </div>
+        </div>
+      }
     </div>
   `,
   styles: [`
@@ -104,6 +140,33 @@ import { Task, TaskStatus, TaskFrequency, CreateTaskRequest } from '../../models
       
       h1 {
         font-size: 1.3rem;
+      }
+    }
+    
+    .loading-spinner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px;
+      
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #e0e0e0;
+        border-top-color: #1976d2;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      
+      p {
+        margin-top: 12px;
+        color: #666;
+      }
+    }
+    
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
       }
     }
     
@@ -124,6 +187,87 @@ import { Task, TaskStatus, TaskFrequency, CreateTaskRequest } from '../../models
           background: #1976d2;
           color: white;
         }
+      }
+    }
+    
+    .task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .task-item {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      
+      &.completed {
+        opacity: 0.7;
+        background: #f5f5f5;
+      }
+    }
+    
+    .task-checkbox {
+      width: 28px;
+      height: 28px;
+      border: 2px solid #ddd;
+      border-radius: 50%;
+      background: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: white;
+      transition: all 0.2s;
+      margin-right: 12px;
+      
+      &.checked {
+        background: #4caf50;
+        border-color: #4caf50;
+      }
+    }
+    
+    .task-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      
+      .task-name {
+        font-weight: 500;
+      }
+      
+      .task-meta {
+        color: #666;
+        font-size: 0.85rem;
+      }
+      
+      .task-due {
+        color: #1976d2;
+        font-size: 0.8rem;
+        margin-top: 2px;
+      }
+    }
+    
+    .task-actions {
+      display: flex;
+      gap: 4px;
+    }
+    
+    .action-btn {
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 8px;
+      transition: background 0.2s;
+      
+      &:hover {
+        background: #e0e0e0;
       }
     }
     
@@ -154,7 +298,12 @@ import { Task, TaskStatus, TaskFrequency, CreateTaskRequest } from '../../models
       max-width: 400px;
       
       h2 {
-        margin-bottom: 16px;
+        margin-bottom: 8px;
+      }
+      
+      .modal-description {
+        color: #666;
+        margin-bottom: 20px;
       }
     }
     
@@ -182,17 +331,93 @@ import { Task, TaskStatus, TaskFrequency, CreateTaskRequest } from '../../models
       justify-content: flex-end;
       margin-top: 16px;
     }
+    
+    .btn-primary {
+      padding: 10px 20px;
+      background: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      
+      &:hover {
+        background: #1565c0;
+      }
+    }
+    
+    .btn-secondary {
+      padding: 10px 20px;
+      background: #e0e0e0;
+      color: #333;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      
+      &:hover {
+        background: #d0d0d0;
+      }
+    }
+    
+    .skip-options {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .option-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+      background: #f5f5f5;
+      border: 2px solid transparent;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+      
+      &:hover {
+        background: #e8f5e9;
+        border-color: #4caf50;
+      }
+      
+      .option-icon {
+        font-size: 2rem;
+        margin-bottom: 8px;
+      }
+      
+      .option-label {
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: 4px;
+      }
+      
+      .option-desc {
+        color: #666;
+        font-size: 0.85rem;
+      }
+    }
+    
+    .cancel-btn {
+      width: 100%;
+      margin-top: 16px;
+    }
   `]
 })
 export class TasksComponent implements OnInit {
   private api = inject(ApiService);
+  private authService = inject(AuthService);
+  private toast = inject(ToastService);
   
   tasks: Task[] = [];
   filteredTasks: Task[] = [];
   filter: 'all' | 'pending' | 'completed' = 'all';
   loading = true;
   showAddModal = false;
-  householdId = 1;
+  showSkipMoveModal = false;
+  selectedTask: Task | null = null;
   
   newTask: Partial<CreateTaskRequest> = {
     name: '',
@@ -204,18 +429,30 @@ export class TasksComponent implements OnInit {
     this.loadTasks();
   }
 
+  get householdId(): number | null {
+    return this.authService.householdId();
+  }
+
   loadTasks() {
+    const householdId = this.householdId;
+    if (!householdId) {
+      this.loading = false;
+      this.toast.error('Kein Haushalt gefunden. Bitte melde dich erneut an.');
+      return;
+    }
+    
     this.loading = true;
-    this.api.getPendingTasks(this.householdId).subscribe({
+    this.api.getPendingTasks(householdId).subscribe({
       next: (tasks) => {
         this.tasks = tasks;
         this.applyFilter();
         this.loading = false;
       },
-      error: () => {
+      error: (err) => {
         this.loading = false;
         this.tasks = [];
         this.filteredTasks = [];
+        this.toast.error('Fehler beim Laden der Aufgaben');
       }
     });
   }
@@ -231,25 +468,82 @@ export class TasksComponent implements OnInit {
   }
 
   completeTask(task: Task) {
-    this.api.completeTask(task.id).subscribe(() => this.loadTasks());
+    this.api.completeTask(task.id).subscribe({
+      next: () => {
+        this.toast.success('Aufgabe erledigt!');
+        this.loadTasks();
+      },
+      error: () => {
+        this.toast.error('Fehler beim Erledigen der Aufgabe');
+      }
+    });
   }
 
-  skipTask(task: Task) {
-    this.api.skipTask(task.id).subscribe(() => this.loadTasks());
+  showSkipModal(task: Task) {
+    this.selectedTask = task;
+    this.showSkipMoveModal = true;
   }
 
-  moveTask(task: Task) {
-    this.api.moveTask(task.id).subscribe(() => this.loadTasks());
+  skipTask() {
+    if (!this.selectedTask) return;
+    
+    this.api.skipTask(this.selectedTask.id).subscribe({
+      next: () => {
+        this.toast.success('Aufgabe übersprungen');
+        this.showSkipMoveModal = false;
+        this.selectedTask = null;
+        this.loadTasks();
+      },
+      error: () => {
+        this.toast.error('Fehler beim Überspringen der Aufgabe');
+      }
+    });
+  }
+
+  moveTask() {
+    if (!this.selectedTask) return;
+    
+    this.api.moveTask(this.selectedTask.id).subscribe({
+      next: () => {
+        this.toast.success('Aufgabe auf morgen verschoben');
+        this.showSkipMoveModal = false;
+        this.selectedTask = null;
+        this.loadTasks();
+      },
+      error: () => {
+        this.toast.error('Fehler beim Verschieben der Aufgabe');
+      }
+    });
   }
 
   createTask(e: Event) {
     e.preventDefault();
-    this.api.createTask(this.householdId, this.newTask as CreateTaskRequest).subscribe({
+    const householdId = this.householdId;
+    if (!householdId) {
+      this.toast.error('Kein Haushalt gefunden');
+      return;
+    }
+    
+    this.api.createTask(householdId, this.newTask as CreateTaskRequest).subscribe({
       next: () => {
+        this.toast.success('Aufgabe erstellt!');
         this.showAddModal = false;
         this.newTask = { name: '', frequency: TaskFrequency.DAILY, points: 1 };
         this.loadTasks();
+      },
+      error: () => {
+        this.toast.error('Fehler beim Erstellen der Aufgabe');
       }
     });
+  }
+
+  getFrequencyLabel(frequency: TaskFrequency): string {
+    const labels: Record<TaskFrequency, string> = {
+      [TaskFrequency.DAILY]: 'Täglich',
+      [TaskFrequency.WEEKLY]: 'Wöchentlich',
+      [TaskFrequency.BI_WEEKLY]: 'Zwei-Wöchentlich',
+      [TaskFrequency.MONTHLY]: 'Monatlich'
+    };
+    return labels[frequency];
   }
 }

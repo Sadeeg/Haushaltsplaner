@@ -1,6 +1,8 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ApiService } from '../../services/api.service';
+import { AuthService } from '../../services/auth.service';
+import { ToastService } from '../../services/toast.service';
 import { LeaderboardEntry } from '../../models/task.model';
 
 @Component({
@@ -14,7 +16,10 @@ import { LeaderboardEntry } from '../../models/task.model';
       </header>
 
       @if (loading) {
-        <p>Lädt...</p>
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+          <p>Lädt...</p>
+        </div>
       } @else {
         <div class="leaderboard-list">
           @for (entry of leaderboard; track entry.userId; let i = $index) {
@@ -43,7 +48,9 @@ import { LeaderboardEntry } from '../../models/task.model';
             </div>
           }
           @if (leaderboard.length === 0) {
-            <p class="empty">Noch keine Daten vorhanden</p>
+            <div class="empty-state">
+              <p>Noch keine Daten vorhanden</p>
+            </div>
           }
         </div>
       }
@@ -60,6 +67,41 @@ import { LeaderboardEntry } from '../../models/task.model';
       h1 {
         font-size: 1.5rem;
       }
+    }
+    
+    .loading-spinner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px;
+      
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #e0e0e0;
+        border-top-color: #1976d2;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      
+      p {
+        margin-top: 12px;
+        color: #666;
+      }
+    }
+    
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    
+    .empty-state {
+      background: #f5f5f5;
+      padding: 40px;
+      border-radius: 12px;
+      text-align: center;
+      color: #999;
     }
     
     .leaderboard-item {
@@ -123,34 +165,49 @@ import { LeaderboardEntry } from '../../models/task.model';
         color: #666;
       }
     }
-    
-    .empty {
-      text-align: center;
-      color: #999;
-      padding: 40px;
-    }
   `]
 })
 export class LeaderboardComponent implements OnInit {
   private api = inject(ApiService);
+  private authService = inject(AuthService);
+  private toast = inject(ToastService);
   
   leaderboard: LeaderboardEntry[] = [];
   loading = true;
-  currentUserId = 1;
-  householdId = 1;
 
   ngOnInit() {
     this.loadLeaderboard();
   }
 
+  get currentUserId(): number | null {
+    return this.authService.userId();
+  }
+
+  get householdId(): number | null {
+    return this.authService.householdId();
+  }
+
   loadLeaderboard() {
+    const householdId = this.householdId;
+    
+    if (!householdId) {
+      this.loading = false;
+      // Demo data when no household
+      this.leaderboard = [
+        { userId: 1, displayName: 'Sascha', totalPoints: 12, completedTasks: 10, skippedTasks: 2 },
+        { userId: 2, displayName: 'Alexandra', totalPoints: 10, completedTasks: 8, skippedTasks: 3 }
+      ];
+      return;
+    }
+    
     this.loading = true;
-    this.api.getLeaderboard(this.householdId).subscribe({
+    this.api.getLeaderboard(householdId).subscribe({
       next: (entries) => {
         this.leaderboard = entries;
         this.loading = false;
       },
       error: () => {
+        // Demo data
         this.leaderboard = [
           { userId: 1, displayName: 'Sascha', totalPoints: 12, completedTasks: 10, skippedTasks: 2 },
           { userId: 2, displayName: 'Alexandra', totalPoints: 10, completedTasks: 8, skippedTasks: 3 }

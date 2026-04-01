@@ -1,11 +1,13 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { AuthService } from './services/auth.service';
+import { ToastComponent } from './components/toast.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet],
+  imports: [CommonModule, RouterOutlet, ToastComponent],
   template: `
     <div class="app-container">
       <nav class="bottom-nav">
@@ -16,6 +18,10 @@ import { CommonModule } from '@angular/common';
         <a routerLink="/tasks" class="nav-item">
           <span class="nav-icon">📋</span>
           <span class="nav-label">Aufgaben</span>
+        </a>
+        <a routerLink="/templates" class="nav-item">
+          <span class="nav-icon">📝</span>
+          <span class="nav-label">Vorlagen</span>
         </a>
         <a routerLink="/leaderboard" class="nav-item">
           <span class="nav-icon">🏆</span>
@@ -29,6 +35,7 @@ import { CommonModule } from '@angular/common';
       <main class="main-content">
         <router-outlet></router-outlet>
       </main>
+      <app-toast></app-toast>
     </div>
   `,
   styles: [`
@@ -70,25 +77,35 @@ import { CommonModule } from '@angular/common';
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 8px 16px;
+      padding: 8px 12px;
       color: #666;
       text-decoration: none;
+      transition: color 0.2s;
       
       &.active {
+        color: #1976d2;
+      }
+      
+      &:hover {
         color: #1976d2;
       }
     }
     
     .nav-icon {
-      font-size: 24px;
+      font-size: 22px;
     }
     
     .nav-label {
-      font-size: 12px;
-      margin-top: 4px;
+      font-size: 11px;
+      margin-top: 2px;
     }
   `]
 })
-export class AppComponent {
-  title = 'Haushaltsplaner';
+export class AppComponent implements OnInit {
+  private authService = inject(AuthService);
+
+  ngOnInit() {
+    // Initialize auth service from storage
+    this.authService.initFromStorage();
+  }
 }

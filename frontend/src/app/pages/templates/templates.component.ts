@@ -2,6 +2,8 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
+import { AuthService } from '../../services/auth.service';
+import { ToastService } from '../../services/toast.service';
 import { TaskTemplate, TaskFrequency } from '../../models/task.model';
 
 @Component({
@@ -16,7 +18,10 @@ import { TaskTemplate, TaskFrequency } from '../../models/task.model';
       </header>
 
       @if (loading) {
-        <p>Lädt...</p>
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+          <p>Lädt...</p>
+        </div>
       } @else {
         <div class="template-list">
           @for (template of templates; track template.id) {
@@ -31,7 +36,10 @@ import { TaskTemplate, TaskFrequency } from '../../models/task.model';
             </div>
           }
           @if (templates.length === 0) {
-            <p class="empty">Keine Vorlagen vorhanden</p>
+            <div class="empty-state">
+              <p>Keine Vorlagen vorhanden</p>
+              <p class="hint">Erstelle eine neue Vorlage, um Aufgaben leichter zu planen.</p>
+            </div>
           }
         </div>
       }
@@ -84,6 +92,47 @@ import { TaskTemplate, TaskFrequency } from '../../models/task.model';
       }
     }
     
+    .loading-spinner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px;
+      
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #e0e0e0;
+        border-top-color: #1976d2;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      
+      p {
+        margin-top: 12px;
+        color: #666;
+      }
+    }
+    
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    
+    .empty-state {
+      background: #f5f5f5;
+      padding: 40px;
+      border-radius: 12px;
+      text-align: center;
+      color: #666;
+      
+      .hint {
+        font-size: 0.9rem;
+        color: #999;
+        margin-top: 8px;
+      }
+    }
+    
     .template-item {
       display: flex;
       justify-content: space-between;
@@ -114,6 +163,13 @@ import { TaskTemplate, TaskFrequency } from '../../models/task.model';
       border: none;
       font-size: 1.2rem;
       cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 8px;
+      transition: background 0.2s;
+      
+      &:hover {
+        background: #ffebee;
+      }
     }
     
     .modal-overlay {
@@ -135,6 +191,10 @@ import { TaskTemplate, TaskFrequency } from '../../models/task.model';
       border-radius: 16px;
       width: 90%;
       max-width: 400px;
+      
+      h2 {
+        margin-bottom: 16px;
+      }
     }
     
     .form-group {
@@ -161,15 +221,44 @@ import { TaskTemplate, TaskFrequency } from '../../models/task.model';
       justify-content: flex-end;
       margin-top: 16px;
     }
+    
+    .btn-primary {
+      padding: 10px 20px;
+      background: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      
+      &:hover {
+        background: #1565c0;
+      }
+    }
+    
+    .btn-secondary {
+      padding: 10px 20px;
+      background: #e0e0e0;
+      color: #333;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      
+      &:hover {
+        background: #d0d0d0;
+      }
+    }
   `]
 })
 export class TemplatesComponent implements OnInit {
   private api = inject(ApiService);
+  private authService = inject(AuthService);
+  private toast = inject(ToastService);
   
   templates: TaskTemplate[] = [];
   loading = true;
   showAddModal = false;
-  householdId = 1;
   
   newTemplate: Partial<TaskTemplate> = {
     name: '',
@@ -181,9 +270,20 @@ export class TemplatesComponent implements OnInit {
     this.loadTemplates();
   }
 
+  get householdId(): number | null {
+    return this.authService.householdId();
+  }
+
   loadTemplates() {
+    const householdId = this.householdId;
+    if (!householdId) {
+      this.loading = false;
+      this.templates = [];
+      return;
+    }
+    
     this.loading = true;
-    this.api.getTemplates(this.householdId).subscribe({
+    this.api.getTemplates(householdId).subscribe({
       next: (templates) => {
         this.templates = templates;
         this.loading = false;
@@ -191,6 +291,7 @@ export class TemplatesComponent implements OnInit {
       error: () => {
         this.templates = [];
         this.loading = false;
+        this.toast.error('Fehler beim Laden der Vorlagen');
       }
     });
   }
@@ -207,16 +308,34 @@ export class TemplatesComponent implements OnInit {
 
   createTemplate(e: Event) {
     e.preventDefault();
-    this.api.createTemplate(this.householdId, this.newTemplate).subscribe({
+    const householdId = this.householdId;
+    if (!householdId) {
+      this.toast.error('Kein Haushalt gefunden');
+      return;
+    }
+    
+    this.api.createTemplate(householdId, this.newTemplate).subscribe({
       next: () => {
+        this.toast.success('Vorlage erstellt!');
         this.showAddModal = false;
         this.newTemplate = { name: '', frequency: TaskFrequency.DAILY, defaultPoints: 1 };
         this.loadTemplates();
+      },
+      error: () => {
+        this.toast.error('Fehler beim Erstellen der Vorlage');
       }
     });
   }
 
   deleteTemplate(id: number) {
-    this.api.deleteTemplate(id).subscribe(() => this.loadTemplates());
+    this.api.deleteTemplate(id).subscribe({
+      next: () => {
+        this.toast.success('Vorlage gelöscht');
+        this.loadTemplates();
+      },
+      error: () => {
+        this.toast.error('Fehler beim Löschen der Vorlage');
+      }
+    });
   }
 }
