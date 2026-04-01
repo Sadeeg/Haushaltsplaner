@@ -16,7 +16,7 @@ export class AuthService {
 
   private authConfig: AuthConfig = {
     issuer: environment.oidcIssuer,
-    redirectUri: environment.oidcRedirectUri,
+    redirectUri: window.location.origin,
     clientId: environment.oidcClientId,
     responseType: 'code',
     scope: environment.oidcScope,
