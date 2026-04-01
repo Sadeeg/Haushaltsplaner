@@ -41,7 +41,13 @@ export class AuthService {
 
     try {
       await this.oauthService.loadDiscoveryDocumentAndTryLogin();
-      this.isAuthenticatedSubject.next(this.oauthService.hasValidAccessToken());
+      const hasToken = this.oauthService.hasValidAccessToken();
+      this.isAuthenticatedSubject.next(hasToken);
+
+      // If we have a token, ensure user exists in backend
+      if (hasToken) {
+        await this.fetchCurrentUser();
+      }
 
       this.oauthService.events.subscribe(event => {
         if (event.type === 'token_received' || event.type === 'token_refreshed') {
@@ -94,6 +100,22 @@ export class AuthService {
     if (!claims) return 0;
     // Nextcloud OIDC sub claim is the user id
     return parseInt((claims['sub'] as string) || '0', 10);
+  }
+
+  private async fetchCurrentUser(): Promise<void> {
+    try {
+      const response = await fetch('/api/users/me', {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`
+        }
+      });
+      if (response.ok) {
+        const user = await response.json();
+        console.log('User from API:', user);
+      }
+    } catch (error) {
+      console.error('Failed to fetch current user:', error);
+    }
   }
 
   getCurrentUser(): { id: number; username: string; email: string; displayName: string; hasTelegram: boolean; householdId: number | null; householdName: string | null } | null {
