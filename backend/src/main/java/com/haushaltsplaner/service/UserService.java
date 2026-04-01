@@ -119,6 +119,7 @@ public class UserService {
                 .hasTelegram(user.getTelegramChatId() != null)
                 .householdId(user.getHousehold() != null ? user.getHousehold().getId() : null)
                 .householdName(user.getHousehold() != null ? user.getHousehold().getName() : null)
+                .telegramChatId(user.getTelegramChatId())
                 .build();
     }
 

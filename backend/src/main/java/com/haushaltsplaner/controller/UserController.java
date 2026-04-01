@@ -74,4 +74,11 @@ public class UserController {
             return ResponseEntity.badRequest().build();
         }
     }
+
+    @GetMapping("/telegram/{chatId}")
+    public ResponseEntity<UserDto> getUserByTelegramChatId(@PathVariable Long chatId) {
+        return userService.findByTelegramChatId(chatId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
 }

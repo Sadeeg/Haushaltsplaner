@@ -15,4 +15,5 @@ public class UserDto {
     private Boolean hasTelegram;
     private Long householdId;
     private String householdName;
+    private Long telegramChatId;
 }
