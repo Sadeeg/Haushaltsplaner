@@ -3,6 +3,9 @@ package com.haushaltsplaner.domain;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Entity
 @Table(name = "task_templates")
 @Getter
@@ -33,4 +36,21 @@ public class TaskTemplate {
 
     @Column(name = "completion_period_days")
     private Integer completionPeriodDays;
+
+    @ManyToMany
+    @JoinTable(
+        name = "task_template_users",
+        joinColumns = @JoinColumn(name = "task_template_id"),
+        inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    @Builder.Default
+    private Set<User> assignedUsers = new HashSet<>();
+
+    public void addUser(User user) {
+        this.assignedUsers.add(user);
+    }
+
+    public void removeUser(User user) {
+        this.assignedUsers.remove(user);
+    }
 }

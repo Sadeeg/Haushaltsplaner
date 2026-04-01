@@ -3,6 +3,8 @@ package com.haushaltsplaner.dto;
 import com.haushaltsplaner.domain.TaskFrequency;
 import lombok.*;
 
+import java.util.Set;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -13,4 +15,5 @@ public class TaskTemplateDto {
     private TaskFrequency frequency;
     private Integer defaultPoints;
     private Integer completionPeriodDays;
+    private Set<Long> assignedUserIds;
 }

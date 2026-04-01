@@ -29,9 +29,9 @@ public class RotationService {
                 .orElseThrow(() -> new RuntimeException("Household not found"));
 
         List<TaskTemplate> templates = taskTemplateRepository.findByHouseholdId(householdId);
-        List<User> members = List.copyOf(household.getMembers());
+        List<User> allMembers = List.copyOf(household.getMembers());
 
-        if (members.isEmpty()) return;
+        if (allMembers.isEmpty()) return;
 
         // Get today's already assigned tasks and their users (for exclusion rules)
         List<Task> todaysTasks = taskRepository.findByHouseholdAndDate(householdId, date);
@@ -49,7 +49,12 @@ public class RotationService {
                     .anyMatch(t -> t.getTaskTemplate() != null && t.getTaskTemplate().getId().equals(template.getId()));
 
             if (!taskExists) {
-                User assignee = selectAssignee(members, template, householdId, assignedUsersToday);
+                // Use assigned users from template, or all members if none specified
+                List<User> eligibleMembers = template.getAssignedUsers().isEmpty() 
+                        ? allMembers 
+                        : List.copyOf(template.getAssignedUsers());
+                
+                User assignee = selectAssignee(eligibleMembers, template, householdId, assignedUsersToday);
                 
                 int periodDays = template.getCompletionPeriodDays() != null ? template.getCompletionPeriodDays() : getDefaultPeriodDays(template.getFrequency());
                 
