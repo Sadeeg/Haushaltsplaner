@@ -2,7 +2,6 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { ApiService } from '../../services/api.service';
 
 @Component({
   selector: 'app-login',
@@ -14,15 +13,19 @@ import { ApiService } from '../../services/api.service';
         <h1>🏠 Haushaltsplaner</h1>
         <p>Anmeldung mit Nextcloud</p>
         
-        <button class="btn-nextcloud" (click)="loginWithNextcloud()" [disabled]="loading">
-          @if (loading) {
-            <span class="spinner"></span>
-            Wird weitergeleitet...
-          } @else {
+        @if (isAuthenticated) {
+          <div class="welcome">
+            <p>Willkommen, <strong>{{ username }}</strong>!</p>
+            <button class="btn-primary" (click)="goHome()">
+              Zur App →
+            </button>
+          </div>
+        } @else {
+          <button class="btn-nextcloud" (click)="login()">
             <span class="icon">☁️</span>
             Mit Nextcloud anmelden
-          }
-        </button>
+          </button>
+        }
         
         <p class="info">
           Für die Nutzung wird ein Nextcloud Account benötigt.
@@ -61,7 +64,14 @@ import { ApiService } from '../../services/api.service';
       }
     }
     
-    .btn-nextcloud {
+    .welcome {
+      p {
+        margin-bottom: 16px;
+        font-size: 1.1rem;
+      }
+    }
+    
+    .btn-nextcloud, .btn-primary {
       width: 100%;
       padding: 16px 24px;
       background: #0082c2;
@@ -77,32 +87,20 @@ import { ApiService } from '../../services/api.service';
       gap: 12px;
       transition: background 0.2s;
       
-      &:hover:not(:disabled) {
+      &:hover {
         background: #006ba3;
-      }
-      
-      &:disabled {
-        opacity: 0.7;
-        cursor: not-allowed;
       }
       
       .icon {
         font-size: 1.5rem;
       }
-      
-      .spinner {
-        width: 20px;
-        height: 20px;
-        border: 2px solid white;
-        border-top-color: transparent;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-      }
     }
     
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
+    .btn-primary {
+      background: #2e7d32;
+      
+      &:hover {
+        background: #1b5e20;
       }
     }
     
@@ -115,46 +113,21 @@ import { ApiService } from '../../services/api.service';
 })
 export class LoginComponent implements OnInit {
   private authService = inject(AuthService);
-  private api = inject(ApiService);
   private router = inject(Router);
   
-  loading = false;
+  isAuthenticated = false;
+  username = '';
 
   ngOnInit() {
-    // Check if user is already logged in
-    if (this.authService.isLoggedIn()) {
-      this.redirectAfterLogin();
-      return;
-    }
-    
-    // Check if this is an OAuth callback with user data
-    if (this.authService.handleOAuthCallback()) {
-      this.redirectAfterLogin();
-      return;
-    }
-    
-    // Check for redirect URL and clear it if login was successful
-    const redirectUrl = localStorage.getItem('redirectUrl');
-    if (redirectUrl) {
-      localStorage.removeItem('redirectUrl');
-    }
+    this.isAuthenticated = this.authService.isAuthenticated;
+    this.username = this.authService.username;
   }
 
-  loginWithNextcloud() {
-    this.loading = true;
-    // Redirect to OAuth endpoint
-    window.location.href = '/api/oauth2/authorization/nextcloud';
+  login() {
+    this.authService.login();
   }
 
-  private redirectAfterLogin() {
-    // Check if there's a stored redirect URL
-    const redirectUrl = localStorage.getItem('redirectUrl');
-    if (redirectUrl) {
-      localStorage.removeItem('redirectUrl');
-      this.router.navigateByUrl(redirectUrl);
-    } else {
-      // Default redirect to home
-      this.router.navigate(['/']);
-    }
+  goHome() {
+    this.router.navigate(['/']);
   }
 }

@@ -249,7 +249,7 @@ export class HomeComponent implements OnInit {
   }
 
   get currentUserId(): number | null {
-    return this.authService.userId();
+    return this.authService.userId;
   }
 
   get householdId(): number | null {

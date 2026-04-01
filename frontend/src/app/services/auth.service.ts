@@ -1,80 +1,116 @@
-import { Injectable, signal, computed } from '@angular/core';
-import { User } from '../models/task.model';
+import { Injectable, inject } from '@angular/core';
+import { Router } from '@angular/router';
+import { OAuthService, AuthConfig } from 'angular-oauth2-oidc';
+import { BehaviorSubject } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private currentUser = signal<User | null>(null);
+  private oauthService = inject(OAuthService);
+  private router = inject(Router);
 
-  readonly user = this.currentUser.asReadonly();
-  readonly isLoggedIn = computed(() => this.currentUser() !== null);
-  readonly householdId = computed(() => this.currentUser()?.householdId ?? null);
-  readonly userId = computed(() => this.currentUser()?.id ?? null);
+  private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
+  isAuthenticated$ = this.isAuthenticatedSubject.asObservable();
 
-  setCurrentUser(user: User): void {
-    this.currentUser.set(user);
-    // Store in localStorage for persistence
-    localStorage.setItem('currentUser', JSON.stringify(user));
+  private authConfig: AuthConfig = {
+    issuer: environment.oidcIssuer,
+    redirectUri: environment.oidcRedirectUri,
+    clientId: environment.oidcClientId,
+    responseType: 'code',
+    scope: environment.oidcScope,
+    showDebugInformation: !environment.production,
+    clearHashAfterLogin: true,
+    requireHttps: environment.production,
+    useSilentRefresh: false,
+    sessionChecksEnabled: false
+  };
+
+  constructor() {
+    this.initialize();
   }
 
-  getCurrentUser(): User | null {
-    // Try to get from signal first
-    let user = this.currentUser();
-    
-    // If not in signal, try localStorage
-    if (!user) {
-      const stored = localStorage.getItem('currentUser');
-      if (stored) {
-        try {
-          user = JSON.parse(stored);
-          this.currentUser.set(user);
-        } catch {
-          localStorage.removeItem('currentUser');
+  initFromStorage(): void {
+    // OAuth initialization is handled in constructor
+    // This method exists for compatibility
+  }
+
+  async initialize(): Promise<void> {
+    this.oauthService.configure(this.authConfig);
+
+    try {
+      await this.oauthService.loadDiscoveryDocumentAndTryLogin();
+      this.isAuthenticatedSubject.next(this.oauthService.hasValidAccessToken());
+
+      this.oauthService.events.subscribe(event => {
+        if (event.type === 'token_received' || event.type === 'token_refreshed') {
+          this.isAuthenticatedSubject.next(true);
+        } else if (event.type === 'logout') {
+          this.isAuthenticatedSubject.next(false);
         }
-      }
+      });
+    } catch (error) {
+      console.error('OAuth initialization error:', error);
+      this.isAuthenticatedSubject.next(false);
     }
-    
-    return user;
+  }
+
+  login(): void {
+    this.oauthService.initCodeFlow();
   }
 
   logout(): void {
-    this.currentUser.set(null);
-    localStorage.removeItem('currentUser');
-    // Redirect to logout endpoint
-    window.location.href = '/api/logout';
+    this.oauthService.logOut();
+    this.isAuthenticatedSubject.next(false);
+    this.router.navigate(['/']);
   }
 
-  // Check if user data is in URL (OAuth callback)
-  handleOAuthCallback(): boolean {
-    const params = new URLSearchParams(window.location.search);
-    const userData = params.get('user');
-    
-    if (userData) {
-      try {
-        const user = JSON.parse(decodeURIComponent(userData)) as User;
-        this.setCurrentUser(user);
-        // Clean URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-        return true;
-      } catch {
-        console.error('Failed to parse user data from OAuth callback');
-      }
-    }
-    
-    return false;
+  get isAuthenticated(): boolean {
+    return this.oauthService.hasValidAccessToken();
   }
 
-  // Initialize from storage on app load
-  initFromStorage(): void {
-    const stored = localStorage.getItem('currentUser');
-    if (stored) {
-      try {
-        const user = JSON.parse(stored) as User;
-        this.currentUser.set(user);
-      } catch {
-        localStorage.removeItem('currentUser');
-      }
-    }
+  get accessToken(): string {
+    return this.oauthService.getAccessToken();
+  }
+
+  get username(): string {
+    const claims = this.oauthService.getIdentityClaims() as Record<string, unknown>;
+    if (!claims) return '';
+    return (claims['preferred_username'] as string)
+      || (claims['name'] as string)
+      || (claims['sub'] as string)
+      || '';
+  }
+
+  get userEmail(): string {
+    const claims = this.oauthService.getIdentityClaims() as Record<string, unknown>;
+    if (!claims) return '';
+    return (claims['email'] as string) || '';
+  }
+
+  get userId(): number {
+    const claims = this.oauthService.getIdentityClaims() as Record<string, unknown>;
+    if (!claims) return 0;
+    // Nextcloud OIDC sub claim is the user id
+    return parseInt((claims['sub'] as string) || '0', 10);
+  }
+
+  getCurrentUser(): { id: number; username: string; email: string; displayName: string; hasTelegram: boolean; householdId: number | null; householdName: string | null } | null {
+    if (!this.isAuthenticated) return null;
+    return {
+      id: this.userId,
+      username: this.username,
+      email: this.userEmail,
+      displayName: this.username,
+      hasTelegram: false,
+      householdId: 1,
+      householdName: 'Haushalt'
+    };
+  }
+
+  householdId(): number {
+    // For now, return 1 as default. In a real app, this would come from the backend after user creation
+    return 1;
   }
 }
