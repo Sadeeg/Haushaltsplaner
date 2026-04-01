@@ -1,7 +1,9 @@
 package com.haushaltsplaner.service;
 
+import com.haushaltsplaner.domain.Household;
 import com.haushaltsplaner.domain.User;
 import com.haushaltsplaner.dto.UserDto;
+import com.haushaltsplaner.repository.HouseholdRepository;
 import com.haushaltsplaner.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,7 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final HouseholdRepository householdRepository;
 
     @Transactional(readOnly = true)
     public Optional<UserDto> findById(Long id) {
@@ -37,21 +40,44 @@ public class UserService {
         return userRepository.findByTelegramChatId(telegramChatId).map(this::toDto);
     }
 
+    /**
+     * Creates or updates a user from OAuth login.
+     * Auto-assigns to default household if user has none.
+     */
     @Transactional
     public UserDto createOrUpdateFromOAuth(String username, String email, String nextcloudId, String displayName) {
         User user = userRepository.findByNextcloudId(nextcloudId)
-                .orElseGet(() -> User.builder()
-                        .username(username)
-                        .email(email)
-                        .nextcloudId(nextcloudId)
-                        .displayName(displayName != null ? displayName : username)
-                        .build());
+                .orElseGet(() -> {
+                    User newUser = User.builder()
+                            .username(username)
+                            .email(email)
+                            .nextcloudId(nextcloudId)
+                            .displayName(displayName != null ? displayName : username)
+                            .build();
+                    
+                    // Auto-assign to default household (first one or create new)
+                    Household household = getOrCreateDefaultHousehold();
+                    newUser.setHousehold(household);
+                    
+                    return newUser;
+                });
         
         user.setUsername(username);
         user.setEmail(email);
         user.setDisplayName(displayName != null ? displayName : username);
         
         return toDto(userRepository.save(user));
+    }
+
+    private Household getOrCreateDefaultHousehold() {
+        List<Household> households = householdRepository.findAll();
+        if (households.isEmpty()) {
+            Household newHousehold = Household.builder()
+                    .name("Haushalt")
+                    .build();
+            return householdRepository.save(newHousehold);
+        }
+        return households.get(0);
     }
 
     @Transactional
