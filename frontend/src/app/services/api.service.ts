@@ -97,4 +97,17 @@ export class ApiService {
   deleteRule(ruleId: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/rules/${ruleId}`);
   }
+
+  // Household
+  createHousehold(name: string): Observable<{ id: number; name: string; inviteCode: string }> {
+    return this.http.post<{ id: number; name: string; inviteCode: string }>(`${this.baseUrl}/households`, { name });
+  }
+
+  joinHousehold(inviteCode: string): Observable<{ id: number; name: string; inviteCode: string }> {
+    return this.http.post<{ id: number; name: string; inviteCode: string }>(`${this.baseUrl}/households/join`, { inviteCode });
+  }
+
+  getHouseholdInfo(householdId: number): Observable<{ id: number; name: string; inviteCode: string; memberCount: number }> {
+    return this.http.get<{ id: number; name: string; inviteCode: string; memberCount: number }>(`${this.baseUrl}/households/${householdId}`);
+  }
 }

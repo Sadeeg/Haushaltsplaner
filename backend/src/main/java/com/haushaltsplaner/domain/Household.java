@@ -22,6 +22,9 @@ public class Household {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "invite_code", unique = true)
+    private String inviteCode;
+
     @OneToMany(mappedBy = "household", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private Set<User> members = new HashSet<>();

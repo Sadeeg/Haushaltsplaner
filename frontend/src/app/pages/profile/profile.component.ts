@@ -30,6 +30,54 @@ import { User } from '../../models/task.model';
         </div>
 
         <div class="section">
+          <h3>Haushalt</h3>
+          @if (user.householdName) {
+            <div class="household-info">
+              <span class="household-icon">🏠</span>
+              <div class="household-details">
+                <span class="household-name">{{ user.householdName }}</span>
+                <span class="household-members">{{ householdMemberCount }} Mitglied(er)</span>
+              </div>
+            </div>
+            
+            @if (householdInviteCode) {
+              <div class="invite-code-section">
+                <h4>Einladungscode</h4>
+                <div class="invite-code">
+                  <span class="code">{{ householdInviteCode }}</span>
+                  <button class="btn-copy" (click)="copyInviteCode()">📋</button>
+                </div>
+                <p class="hint">Teile diesen Code mit anderen, um sie in den Haushalt einzuladen.</p>
+              </div>
+            }
+          } @else {
+            <p class="no-household">Noch keinem Haushalt beigetreten</p>
+            
+            @if (!showJoinForm) {
+              <div class="household-actions">
+                <button class="btn-primary" (click)="showCreateModal = true">Haushalt erstellen</button>
+                <button class="btn-secondary" (click)="showJoinForm = true">Haushalt beitreten</button>
+              </div>
+            } @else {
+              <div class="join-form">
+                <label>Einladungscode eingeben</label>
+                <div class="code-input-row">
+                  <input type="text" [(ngModel)]="joinCode" placeholder="CODE" maxlength="10" class="code-input">
+                  <button class="btn-primary" (click)="joinHousehold()" [disabled]="joining">
+                    @if (joining) {
+                      <span class="spinner-small"></span>
+                    } @else {
+                      Beitreten
+                    }
+                  </button>
+                </div>
+                <button class="btn-text" (click)="showJoinForm = false">Abbrechen</button>
+              </div>
+            }
+          }
+        </div>
+
+        <div class="section">
           <h3>Telegram Verknüpfung</h3>
           @if (user.hasTelegram) {
             <div class="status connected">
@@ -58,19 +106,7 @@ import { User } from '../../models/task.model';
         </div>
 
         <div class="section">
-          <h3>Haushalt</h3>
-          @if (user.householdName) {
-            <div class="household-info">
-              <span class="household-icon">🏠</span>
-              <span>{{ user.householdName }}</span>
-            </div>
-          } @else {
-            <p class="no-household">Noch keinem Haushalt beigetreten</p>
-          }
-        </div>
-
-        <div class="section">
-          <h3>Punkte</h3>
+          <h3>Punkte (Monatlich)</h3>
           <div class="stats-grid">
             <div class="stat-item">
               <span class="stat-value">{{ userStats?.totalPoints || 0 }}</span>
@@ -94,6 +130,31 @@ import { User } from '../../models/task.model';
       }
 
       <button class="btn-logout" (click)="logout()">Abmelden</button>
+
+      <!-- Create Household Modal -->
+      @if (showCreateModal) {
+        <div class="modal-overlay" (click)="showCreateModal = false">
+          <div class="modal" (click)="$event.stopPropagation()">
+            <h2>🏠 Haushalt erstellen</h2>
+            <form (submit)="createHousehold($event)">
+              <div class="form-group">
+                <label>Haushaltsname</label>
+                <input type="text" [(ngModel)]="newHouseholdName" name="name" required placeholder="z.B. Deeg Haushalt">
+              </div>
+              <div class="modal-actions">
+                <button type="button" class="btn-secondary" (click)="showCreateModal = false">Abbrechen</button>
+                <button type="submit" class="btn-primary" [disabled]="creating">
+                  @if (creating) {
+                    <span class="spinner-small"></span>
+                  } @else {
+                    Erstellen
+                  }
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      }
     </div>
   `,
   styles: [`
@@ -173,6 +234,139 @@ import { User } from '../../models/task.model';
         margin-bottom: 12px;
         color: #333;
       }
+      
+      h4 {
+        font-size: 0.9rem;
+        color: #666;
+        margin-bottom: 8px;
+      }
+    }
+    
+    .household-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      
+      .household-icon {
+        font-size: 2rem;
+      }
+      
+      .household-details {
+        display: flex;
+        flex-direction: column;
+        
+        .household-name {
+          font-weight: 600;
+          font-size: 1.1rem;
+        }
+        
+        .household-members {
+          color: #666;
+          font-size: 0.85rem;
+        }
+      }
+    }
+    
+    .invite-code-section {
+      background: #f5f5f5;
+      padding: 16px;
+      border-radius: 12px;
+      margin-top: 12px;
+      
+      h4 {
+        margin-bottom: 8px;
+      }
+      
+      .invite-code {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        
+        .code {
+          font-family: monospace;
+          font-size: 1.3rem;
+          font-weight: 700;
+          letter-spacing: 2px;
+          color: #1976d2;
+          background: white;
+          padding: 8px 16px;
+          border-radius: 8px;
+          border: 2px solid #e0e0e0;
+        }
+        
+        .btn-copy {
+          background: none;
+          border: none;
+          font-size: 1.2rem;
+          cursor: pointer;
+          padding: 8px;
+          border-radius: 8px;
+          
+          &:hover {
+            background: #e0e0e0;
+          }
+        }
+      }
+      
+      .hint {
+        font-size: 0.8rem;
+        color: #666;
+        margin-top: 8px;
+      }
+    }
+    
+    .no-household {
+      color: #999;
+      margin-bottom: 16px;
+    }
+    
+    .household-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .join-form {
+      background: #f5f5f5;
+      padding: 16px;
+      border-radius: 12px;
+      
+      label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 8px;
+      }
+      
+      .code-input-row {
+        display: flex;
+        gap: 8px;
+        
+        .code-input {
+          flex: 1;
+          padding: 10px;
+          border: 1px solid #ddd;
+          border-radius: 8px;
+          font-size: 1rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 2px;
+        }
+      }
+      
+      .btn-text {
+        background: none;
+        border: none;
+        color: #666;
+        font-size: 0.9rem;
+        cursor: pointer;
+        margin-top: 8px;
+        padding: 4px;
+        
+        &:hover {
+          color: #333;
+        }
+      }
     }
     
     .status.connected {
@@ -223,20 +417,6 @@ import { User } from '../../models/task.model';
       border-top-color: transparent;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
-    }
-    
-    .household-info {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      
-      .household-icon {
-        font-size: 1.5rem;
-      }
-    }
-    
-    .no-household {
-      color: #999;
     }
     
     .stats-grid {
@@ -295,6 +475,20 @@ import { User } from '../../models/task.model';
       }
     }
     
+    .btn-secondary {
+      padding: 10px 20px;
+      background: #e0e0e0;
+      color: #333;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      
+      &:hover {
+        background: #d0d0d0;
+      }
+    }
+    
     .btn-logout {
       width: 100%;
       padding: 14px;
@@ -310,6 +504,56 @@ import { User } from '../../models/task.model';
         background: #d32f2f;
       }
     }
+    
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    
+    .modal {
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 400px;
+      
+      h2 {
+        margin-bottom: 16px;
+      }
+    }
+    
+    .form-group {
+      margin-bottom: 16px;
+      
+      label {
+        display: block;
+        margin-bottom: 4px;
+        font-weight: 500;
+      }
+      
+      input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 1rem;
+      }
+    }
+    
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
   `]
 })
 export class ProfileComponent implements OnInit {
@@ -322,6 +566,16 @@ export class ProfileComponent implements OnInit {
   verificationCode = '';
   linking = false;
   loading = true;
+  
+  // Household
+  householdInviteCode = '';
+  householdMemberCount = 0;
+  showCreateModal = false;
+  showJoinForm = false;
+  newHouseholdName = '';
+  joinCode = '';
+  creating = false;
+  joining = false;
 
   ngOnInit() {
     this.loadUser();
@@ -336,6 +590,7 @@ export class ProfileComponent implements OnInit {
     if (user) {
       this.user = user;
       this.loadUserStats();
+      this.loadHouseholdInfo();
     } else {
       // Demo user for development
       this.user = {
@@ -352,8 +607,25 @@ export class ProfileComponent implements OnInit {
         completedTasks: 10,
         skippedTasks: 2
       };
+      this.householdInviteCode = 'KERSBACH';
+      this.householdMemberCount = 2;
     }
     this.loading = false;
+  }
+
+  loadHouseholdInfo() {
+    const householdId = this.authService.householdId();
+    if (!householdId) return;
+    
+    this.api.getHouseholdInfo(householdId).subscribe({
+      next: (info) => {
+        this.householdInviteCode = info.inviteCode;
+        this.householdMemberCount = info.memberCount;
+      },
+      error: () => {
+        // Ignore
+      }
+    });
   }
 
   loadUserStats() {
@@ -379,12 +651,60 @@ export class ProfileComponent implements OnInit {
     });
   }
 
+  createHousehold(e: Event) {
+    e.preventDefault();
+    if (!this.newHouseholdName.trim()) return;
+    
+    this.creating = true;
+    this.api.createHousehold(this.newHouseholdName).subscribe({
+      next: (household) => {
+        this.toast.success('Haushalt erstellt!');
+        this.householdInviteCode = household.inviteCode;
+        this.householdMemberCount = 1;
+        this.user = { ...this.user!, householdId: household.id, householdName: household.name };
+        this.showCreateModal = false;
+        this.newHouseholdName = '';
+        this.creating = false;
+      },
+      error: () => {
+        this.toast.error('Fehler beim Erstellen des Haushalts');
+        this.creating = false;
+      }
+    });
+  }
+
+  joinHousehold() {
+    if (!this.joinCode.trim()) return;
+    
+    this.joining = true;
+    this.api.joinHousehold(this.joinCode.toUpperCase()).subscribe({
+      next: (household) => {
+        this.toast.success('Haushalt beigetreten!');
+        this.householdInviteCode = household.inviteCode;
+        this.user = { ...this.user!, householdId: household.id, householdName: household.name };
+        this.showJoinForm = false;
+        this.joinCode = '';
+        this.joining = false;
+        this.loadHouseholdInfo();
+      },
+      error: () => {
+        this.toast.error('Ungültiger Einladungscode');
+        this.joining = false;
+      }
+    });
+  }
+
+  copyInviteCode() {
+    navigator.clipboard.writeText(this.householdInviteCode).then(() => {
+      this.toast.success('Code kopiert!');
+    });
+  }
+
   linkTelegram() {
     if (this.verificationCode.length < 8 || !this.user) return;
     
     this.linking = true;
     // Would link via API
-    // For now, just simulate
     setTimeout(() => {
       this.toast.success('Telegram erfolgreich verknüpft!');
       this.user = { ...this.user!, hasTelegram: true };
