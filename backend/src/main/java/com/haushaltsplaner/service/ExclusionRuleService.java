@@ -2,8 +2,11 @@ package com.haushaltsplaner.service;
 
 import com.haushaltsplaner.domain.ExclusionRule;
 import com.haushaltsplaner.domain.ExclusionType;
+import com.haushaltsplaner.domain.Household;
+import com.haushaltsplaner.domain.TaskTemplate;
 import com.haushaltsplaner.dto.ExclusionRuleDto;
 import com.haushaltsplaner.repository.ExclusionRuleRepository;
+import com.haushaltsplaner.repository.HouseholdRepository;
 import com.haushaltsplaner.repository.TaskTemplateRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +21,7 @@ public class ExclusionRuleService {
 
     private final ExclusionRuleRepository exclusionRuleRepository;
     private final TaskTemplateRepository taskTemplateRepository;
+    private final HouseholdRepository householdRepository;
 
     @Transactional(readOnly = true)
     public List<ExclusionRuleDto> getRulesForHousehold(Long householdId) {
@@ -29,7 +33,19 @@ public class ExclusionRuleService {
 
     @Transactional
     public ExclusionRuleDto createRule(ExclusionRuleDto dto, Long householdId) {
+        Household household = householdRepository.findById(householdId)
+                .orElseThrow(() -> new RuntimeException("Household not found"));
+
+        TaskTemplate taskA = taskTemplateRepository.findById(dto.getTaskATemplateId())
+                .orElseThrow(() -> new RuntimeException("Task A not found"));
+
+        TaskTemplate taskB = taskTemplateRepository.findById(dto.getTaskBTemplateId())
+                .orElseThrow(() -> new RuntimeException("Task B not found"));
+
         ExclusionRule rule = ExclusionRule.builder()
+                .household(household)
+                .taskA(taskA)
+                .taskB(taskB)
                 .ruleType(dto.getRuleType() != null ? dto.getRuleType() : ExclusionType.MUTUAL)
                 .build();
 

@@ -21,6 +21,11 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
   {
+    path: 'rules',
+    loadComponent: () => import('./pages/rules/rules.component').then(m => m.RulesComponent),
+    canActivate: [authGuard]
+  },
+  {
     path: 'leaderboard',
     loadComponent: () => import('./pages/leaderboard/leaderboard.component').then(m => m.LeaderboardComponent),
     canActivate: [authGuard]

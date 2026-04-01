@@ -23,9 +23,9 @@ import { ToastComponent } from './components/toast.component';
           <span class="nav-icon">📝</span>
           <span class="nav-label">Vorlagen</span>
         </a>
-        <a routerLink="/leaderboard" class="nav-item">
-          <span class="nav-icon">🏆</span>
-          <span class="nav-label">Punkte</span>
+        <a routerLink="/rules" class="nav-item">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-label">Regeln</span>
         </a>
         <a routerLink="/profile" class="nav-item">
           <span class="nav-icon">👤</span>
