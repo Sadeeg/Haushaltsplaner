@@ -5,12 +5,14 @@ import com.haushaltsplaner.domain.User;
 import com.haushaltsplaner.dto.HouseholdDto;
 import com.haushaltsplaner.repository.HouseholdRepository;
 import com.haushaltsplaner.repository.UserRepository;
+import com.haushaltsplaner.service.RotationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.Random;
 
 @RestController
@@ -20,6 +22,7 @@ public class HouseholdController {
 
     private final HouseholdRepository householdRepository;
     private final UserRepository userRepository;
+    private final RotationService rotationService;
 
     @PostMapping
     public ResponseEntity<HouseholdDto> createHousehold(@AuthenticationPrincipal Jwt jwt, @RequestBody CreateHouseholdRequest request) {
@@ -84,6 +87,23 @@ public class HouseholdController {
         }
 
         return ResponseEntity.ok(toDto(household));
+    }
+
+    /**
+     * Manually trigger task generation for next 14 days.
+     * Useful after creating a new template or if cron hasn't run.
+     */
+    @PostMapping("/{householdId}/generate-tasks")
+    public ResponseEntity<Void> generateTasks(@PathVariable Long householdId) {
+        try {
+            for (int i = 0; i <= 14; i++) {
+                LocalDate date = LocalDate.now().plusDays(i);
+                rotationService.generateTasksForDate(householdId, date);
+            }
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     private String generateInviteCode() {
