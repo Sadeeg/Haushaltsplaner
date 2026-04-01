@@ -1,5 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
@@ -8,68 +9,137 @@ import { Task, TaskStatus } from '../../models/task.model';
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   template: `
-    <div class="home-page">
-      <header class="header">
-        <h1>🌅 Guten Morgen, {{ userName }}</h1>
-        <p class="date">{{ today | date:'EEEE, d. MMMM yyyy' }}</p>
-      </header>
+    @if (!isAuthenticated) {
+      <div class="not-authenticated">
+        <div class="login-card">
+          <h1>🏠 Haushaltsplaner</h1>
+          <p>Faire Aufgabenverteilung im Haushalt</p>
+          <a routerLink="/login" class="btn-login">
+            <span class="icon">☁️</span>
+            Mit Nextcloud anmelden
+          </a>
+        </div>
+      </div>
+    } @else {
+      <div class="home-page">
+        <header class="header">
+          <h1>🌅 Guten Morgen, {{ userName }}</h1>
+          <p class="date">{{ today | date:'EEEE, d. MMMM yyyy' }}</p>
+        </header>
 
-      <section class="today-section">
-        <h2>Heute für dich:</h2>
-        @if (loading) {
-          <div class="loading-spinner">
-            <div class="spinner"></div>
-          </div>
-        } @else if (tasks.length === 0) {
-          <div class="empty-state">
-            <p>Keine Aufgaben für heute! 🎉</p>
-          </div>
-        } @else {
-          @for (task of tasks; track task.id) {
-            <div class="task-item" [class.completed]="task.status === 'COMPLETED'">
-              <button 
-                class="task-checkbox" 
-                [class.checked]="task.status === 'COMPLETED'"
-                (click)="completeTask(task)">
-                @if (task.status === 'COMPLETED') {
-                  ✓
-                }
-              </button>
-              <div class="task-content">
-                <span class="task-name">{{ task.name }}</span>
-                <span class="task-meta">{{ task.points }} Punkt{{ task.points > 1 ? 'e' : '' }}</span>
-                @if (task.completionPeriodEnd) {
-                  <span class="task-due">Fällig bis {{ task.completionPeriodEnd | date:'d.M.' }}</span>
-                }
+        <section class="today-section">
+          <h2>Heute für dich:</h2>
+          @if (loading) {
+            <div class="loading-spinner">
+              <div class="spinner"></div>
+            </div>
+          } @else if (tasks.length === 0) {
+            <div class="empty-state">
+              <p>Keine Aufgaben für heute! 🎉</p>
+            </div>
+          } @else {
+            @for (task of tasks; track task.id) {
+              <div class="task-item" [class.completed]="task.status === 'COMPLETED'">
+                <button 
+                  class="task-checkbox" 
+                  [class.checked]="task.status === 'COMPLETED'"
+                  (click)="completeTask(task)">
+                  @if (task.status === 'COMPLETED') {
+                    ✓
+                  }
+                </button>
+                <div class="task-content">
+                  <span class="task-name">{{ task.name }}</span>
+                  <span class="task-meta">{{ task.points }} Punkt{{ task.points > 1 ? 'e' : '' }}</span>
+                  @if (task.completionPeriodEnd) {
+                    <span class="task-due">Fällig bis {{ task.completionPeriodEnd | date:'d.M.' }}</span>
+                  }
+                </div>
+                <div class="task-actions">
+                  @if (task.status === 'PENDING') {
+                    <button class="action-btn" (click)="skipTask(task)" title="Überspringen">⏭️</button>
+                    <button class="action-btn" (click)="moveTask(task)" title="Verschieben">📅</button>
+                  }
+                </div>
               </div>
-              <div class="task-actions">
-                @if (task.status === 'PENDING') {
-                  <button class="action-btn" (click)="skipTask(task)" title="Überspringen">⏭️</button>
-                  <button class="action-btn" (click)="moveTask(task)" title="Verschieben">📅</button>
-                }
-              </div>
+            }
+          }
+        </section>
+
+        <section class="upcoming-section">
+          <h2>Diese Woche:</h2>
+          @for (task of upcomingTasks; track task.id) {
+            <div class="task-card">
+              <span class="task-name">{{ task.name }}</span>
+              <span class="task-due">{{ task.dueDate | date:'EEE, d.' }}</span>
             </div>
           }
-        }
-      </section>
-
-      <section class="upcoming-section">
-        <h2>Diese Woche:</h2>
-        @for (task of upcomingTasks; track task.id) {
-          <div class="task-card">
-            <span class="task-name">{{ task.name }}</span>
-            <span class="task-due">{{ task.dueDate | date:'EEE, d.' }}</span>
-          </div>
-        }
-        @if (upcomingTasks.length === 0) {
-          <p class="empty-text">Keine anstehenden Aufgaben</p>
-        }
-      </section>
-    </div>
+          @if (upcomingTasks.length === 0) {
+            <p class="empty-text">Keine anstehenden Aufgaben</p>
+          }
+        </section>
+      </div>
+    }
   `,
   styles: [`
+    .not-authenticated {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
+    }
+    
+    .login-card {
+      background: white;
+      padding: 40px;
+      border-radius: 16px;
+      text-align: center;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      
+      h1 {
+        font-size: 1.5rem;
+        margin-bottom: 8px;
+        color: #333;
+      }
+      
+      p {
+        color: #666;
+        margin-bottom: 24px;
+      }
+    }
+    
+    .btn-login {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      padding: 16px 24px;
+      background: #0082c2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.2s;
+      
+      &:hover {
+        background: #006ba3;
+      }
+      
+      .icon {
+        font-size: 1.5rem;
+      }
+    }
+    
     .home-page {
       padding: 16px;
     }
@@ -232,6 +302,7 @@ export class HomeComponent implements OnInit {
   private authService = inject(AuthService);
   private toast = inject(ToastService);
   
+  isAuthenticated = false;
   userName = '';
   today = new Date();
   tasks: Task[] = [];
@@ -239,17 +310,18 @@ export class HomeComponent implements OnInit {
   loading = true;
 
   ngOnInit() {
-    const user = this.authService.getCurrentUser();
-    if (user) {
-      this.userName = user.displayName || user.username;
+    this.isAuthenticated = this.authService.isAuthenticated;
+    if (this.isAuthenticated) {
+      const user = this.authService.getCurrentUser();
+      this.userName = user?.displayName || user?.username || 'Gast';
+      this.loadTasks();
     } else {
-      this.userName = 'Gast';
+      this.loading = false;
     }
-    this.loadTasks();
   }
 
   get currentUserId(): number | null {
-    return this.authService.userId;
+    return this.authService.userId || null;
   }
 
   get householdId(): number | null {
@@ -262,12 +334,6 @@ export class HomeComponent implements OnInit {
     
     if (!householdId) {
       this.loading = false;
-      // Demo data when no household
-      this.tasks = [
-        { id: 1, name: 'Kochen', frequency: 'DAILY' as any, dueDate: new Date().toISOString(), completionPeriodStart: null, completionPeriodEnd: null, status: 'PENDING' as any, assignedUserId: userId || 1, assignedUserName: this.userName, points: 1, completedAt: null },
-        { id: 2, name: 'Müll rausbringen', frequency: 'WEEKLY' as any, dueDate: new Date().toISOString(), completionPeriodStart: null, completionPeriodEnd: null, status: 'PENDING' as any, assignedUserId: userId || 1, assignedUserName: this.userName, points: 2, completedAt: null }
-      ];
-      this.loading = false;
       return;
     }
     
@@ -278,11 +344,6 @@ export class HomeComponent implements OnInit {
         this.loading = false;
       },
       error: () => {
-        // Demo data
-        this.tasks = [
-          { id: 1, name: 'Kochen', frequency: 'DAILY' as any, dueDate: new Date().toISOString(), completionPeriodStart: null, completionPeriodEnd: null, status: 'PENDING' as any, assignedUserId: userId || 1, assignedUserName: this.userName, points: 1, completedAt: null },
-          { id: 2, name: 'Müll rausbringen', frequency: 'WEEKLY' as any, dueDate: new Date().toISOString(), completionPeriodStart: null, completionPeriodEnd: null, status: 'PENDING' as any, assignedUserId: userId || 1, assignedUserName: this.userName, points: 2, completedAt: null }
-        ];
         this.loading = false;
       }
     });
