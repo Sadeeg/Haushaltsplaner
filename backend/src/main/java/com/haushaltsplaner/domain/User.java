@@ -36,6 +36,13 @@ public class User {
     @Column(name = "nextcloud_id", unique = true)
     private String nextcloudId;
 
+    @Column(name = "monthly_points")
+    @Builder.Default
+    private Integer monthlyPoints = 0;
+
+    @Column(name = "last_points_reset")
+    private LocalDateTime lastPointsReset;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "household_id")
     private Household household;

@@ -100,6 +100,13 @@ public class TaskService {
         task.setStatus(TaskStatus.COMPLETED);
         task.setCompletedAt(LocalDateTime.now());
         
+        // Add points to user's monthly total
+        if (task.getAssignedUser() != null && task.getPoints() != null) {
+            User user = task.getAssignedUser();
+            user.setMonthlyPoints(user.getMonthlyPoints() + task.getPoints());
+            userRepository.save(user);
+        }
+        
         return toDto(taskRepository.save(task));
     }
 
@@ -173,23 +180,28 @@ public class TaskService {
         Household household = householdRepository.findById(householdId)
                 .orElseThrow(() -> new RuntimeException("Household not found"));
 
+        // Get first day of current month for filtering
+        LocalDate firstDayOfMonth = LocalDate.now().withDayOfMonth(1);
+
         return household.getMembers().stream()
                 .map(user -> {
+                    // Filter tasks completed this month
                     int completed = (int) user.getAssignedTasks().stream()
                             .filter(t -> t.getStatus() == TaskStatus.COMPLETED)
+                            .filter(t -> t.getCompletedAt() != null && t.getCompletedAt().toLocalDate().isAfter(firstDayOfMonth.minusDays(1)))
                             .count();
                     int skipped = (int) user.getAssignedTasks().stream()
                             .filter(t -> t.getStatus() == TaskStatus.SKIPPED)
+                            .filter(t -> t.getDueDate() != null && t.getDueDate().isAfter(firstDayOfMonth.minusDays(1)))
                             .count();
-                    int totalPoints = user.getAssignedTasks().stream()
-                            .filter(t -> t.getStatus() == TaskStatus.COMPLETED)
-                            .mapToInt(Task::getPoints)
-                            .sum();
+                    
+                    // Use monthlyPoints field for fair monthly reset
+                    int monthlyPoints = user.getMonthlyPoints() != null ? user.getMonthlyPoints() : 0;
 
                     return LeaderboardEntry.builder()
                             .userId(user.getId())
                             .displayName(user.getDisplayName())
-                            .totalPoints(totalPoints)
+                            .totalPoints(monthlyPoints)
                             .completedTasks(completed)
                             .skippedTasks(skipped)
                             .build();
