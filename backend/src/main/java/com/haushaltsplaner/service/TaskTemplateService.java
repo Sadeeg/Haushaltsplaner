@@ -1,10 +1,12 @@
 package com.haushaltsplaner.service;
 
 import com.haushaltsplaner.domain.Household;
+import com.haushaltsplaner.domain.Task;
 import com.haushaltsplaner.domain.TaskTemplate;
 import com.haushaltsplaner.domain.User;
 import com.haushaltsplaner.dto.TaskTemplateDto;
 import com.haushaltsplaner.repository.HouseholdRepository;
+import com.haushaltsplaner.repository.TaskRepository;
 import com.haushaltsplaner.repository.TaskTemplateRepository;
 import com.haushaltsplaner.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,7 @@ import java.util.stream.Collectors;
 public class TaskTemplateService {
 
     private final TaskTemplateRepository taskTemplateRepository;
+    private final TaskRepository taskRepository;
     private final HouseholdRepository householdRepository;
     private final UserRepository userRepository;
 
@@ -80,7 +83,17 @@ public class TaskTemplateService {
 
     @Transactional
     public void deleteTemplate(Long templateId) {
-        taskTemplateRepository.deleteById(templateId);
+        TaskTemplate template = taskTemplateRepository.findById(templateId)
+                .orElseThrow(() -> new RuntimeException("Template not found"));
+        
+        // Delete associated tasks first (avoid foreign key violation)
+        List<Task> associatedTasks = taskRepository.findByTaskTemplateId(templateId);
+        taskRepository.deleteAll(associatedTasks);
+        
+        // Clear assigned users relationship
+        template.getAssignedUsers().clear();
+        
+        taskTemplateRepository.delete(template);
     }
 
     private TaskTemplateDto toDto(TaskTemplate template) {

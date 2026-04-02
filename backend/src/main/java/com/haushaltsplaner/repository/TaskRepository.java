@@ -24,4 +24,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findByHouseholdAndDate(@Param("householdId") Long householdId, @Param("date") LocalDate date);
     
     List<Task> findByHouseholdIdAndStatus(Long householdId, TaskStatus status);
+    
+    List<Task> findByTaskTemplateId(Long templateId);
 }
