@@ -26,9 +26,21 @@ public class HouseholdController {
 
     @PostMapping
     public ResponseEntity<HouseholdDto> createHousehold(@AuthenticationPrincipal Jwt jwt, @RequestBody CreateHouseholdRequest request) {
+        if (jwt == null) {
+            return ResponseEntity.status(401).build();
+        }
+        
         String nextcloudId = jwt.getSubject();
         User user = userRepository.findByNextcloudId(nextcloudId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseGet(() -> {
+                    // Auto-create user if they don't exist
+                    User newUser = User.builder()
+                            .nextcloudId(nextcloudId)
+                            .username(nextcloudId)
+                            .displayName(nextcloudId)
+                            .build();
+                    return userRepository.save(newUser);
+                });
 
         // Check if user already has a household
         if (user.getHousehold() != null) {
@@ -53,9 +65,21 @@ public class HouseholdController {
 
     @PostMapping("/join")
     public ResponseEntity<HouseholdDto> joinHousehold(@AuthenticationPrincipal Jwt jwt, @RequestBody JoinHouseholdRequest request) {
+        if (jwt == null) {
+            return ResponseEntity.status(401).build();
+        }
+        
         String nextcloudId = jwt.getSubject();
         User user = userRepository.findByNextcloudId(nextcloudId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseGet(() -> {
+                    // Auto-create user if they don't exist
+                    User newUser = User.builder()
+                            .nextcloudId(nextcloudId)
+                            .username(nextcloudId)
+                            .displayName(nextcloudId)
+                            .build();
+                    return userRepository.save(newUser);
+                });
 
         // Check if user already has a household
         if (user.getHousehold() != null) {
@@ -108,9 +132,17 @@ public class HouseholdController {
 
     @PostMapping("/leave")
     public ResponseEntity<Void> leaveHousehold(@AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) {
+            return ResponseEntity.status(401).build();
+        }
+        
         String nextcloudId = jwt.getSubject();
         User user = userRepository.findByNextcloudId(nextcloudId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElse(null);
+
+        if (user == null) {
+            return ResponseEntity.status(401).build();
+        }
 
         user.setHousehold(null);
         userRepository.save(user);
