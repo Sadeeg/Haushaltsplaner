@@ -110,4 +110,8 @@ export class ApiService {
   getHouseholdInfo(householdId: number): Observable<{ id: number; name: string; inviteCode: string; memberCount: number }> {
     return this.http.get<{ id: number; name: string; inviteCode: string; memberCount: number }>(`${this.baseUrl}/households/${householdId}`);
   }
+
+  leaveHousehold(): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/households/leave`, {});
+  }
 }

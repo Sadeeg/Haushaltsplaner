@@ -106,6 +106,18 @@ public class HouseholdController {
         }
     }
 
+    @PostMapping("/leave")
+    public ResponseEntity<Void> leaveHousehold(@AuthenticationPrincipal Jwt jwt) {
+        String nextcloudId = jwt.getSubject();
+        User user = userRepository.findByNextcloudId(nextcloudId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setHousehold(null);
+        userRepository.save(user);
+
+        return ResponseEntity.ok().build();
+    }
+
     private String generateInviteCode() {
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         StringBuilder code = new StringBuilder();

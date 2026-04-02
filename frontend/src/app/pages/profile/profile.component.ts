@@ -50,30 +50,34 @@ import { User } from '../../models/task.model';
                 <p class="hint">Teile diesen Code mit anderen, um sie in den Haushalt einzuladen.</p>
               </div>
             }
+            
+            <button class="btn-danger-text" (click)="leaveHousehold()">Haushalt verlassen</button>
           } @else {
             <p class="no-household">Noch keinem Haushalt beigetreten</p>
-            
-            @if (!showJoinForm) {
-              <div class="household-actions">
-                <button class="btn-primary" (click)="showCreateModal = true">Haushalt erstellen</button>
-                <button class="btn-secondary" (click)="showJoinForm = true">Haushalt beitreten</button>
+          }
+          
+          @if (!showJoinForm && !showCreateModal) {
+            <div class="household-actions">
+              <button class="btn-primary" (click)="showCreateModal = true">Haushalt erstellen</button>
+              <button class="btn-secondary" (click)="showJoinForm = true">Haushalt beitreten</button>
+            </div>
+          }
+          
+          @if (showJoinForm) {
+            <div class="join-form">
+              <label>Einladungscode eingeben</label>
+              <div class="code-input-row">
+                <input type="text" [(ngModel)]="joinCode" placeholder="CODE" maxlength="10" class="code-input">
+                <button class="btn-primary" (click)="joinHousehold()" [disabled]="joining">
+                  @if (joining) {
+                    <span class="spinner-small"></span>
+                  } @else {
+                    Beitreten
+                  }
+                </button>
               </div>
-            } @else {
-              <div class="join-form">
-                <label>Einladungscode eingeben</label>
-                <div class="code-input-row">
-                  <input type="text" [(ngModel)]="joinCode" placeholder="CODE" maxlength="10" class="code-input">
-                  <button class="btn-primary" (click)="joinHousehold()" [disabled]="joining">
-                    @if (joining) {
-                      <span class="spinner-small"></span>
-                    } @else {
-                      Beitreten
-                    }
-                  </button>
-                </div>
-                <button class="btn-text" (click)="showJoinForm = false">Abbrechen</button>
-              </div>
-            }
+              <button class="btn-text" (click)="showJoinForm = false">Abbrechen</button>
+            </div>
           }
         </div>
 
@@ -505,6 +509,20 @@ import { User } from '../../models/task.model';
       }
     }
     
+    .btn-danger-text {
+      background: none;
+      border: none;
+      color: #f44336;
+      font-size: 0.9rem;
+      cursor: pointer;
+      padding: 8px 0;
+      margin-top: 8px;
+      
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+    
     .modal-overlay {
       position: fixed;
       top: 0;
@@ -711,6 +729,22 @@ export class ProfileComponent implements OnInit {
       this.verificationCode = '';
       this.linking = false;
     }, 1000);
+  }
+
+  leaveHousehold() {
+    if (!confirm('Möchtest du den Haushalt wirklich verlassen?')) return;
+    
+    this.api.leaveHousehold().subscribe({
+      next: () => {
+        this.toast.success('Haushalt verlassen');
+        this.user = { ...this.user!, householdId: null, householdName: null };
+        this.householdInviteCode = '';
+        this.householdMemberCount = 0;
+      },
+      error: () => {
+        this.toast.error('Fehler beim Verlassen des Haushalts');
+      }
+    });
   }
 
   logout() {
