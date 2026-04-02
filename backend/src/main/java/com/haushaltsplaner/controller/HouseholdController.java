@@ -110,7 +110,17 @@ public class HouseholdController {
             return ResponseEntity.notFound().build();
         }
 
-        return ResponseEntity.ok(toDto(household));
+        // Fetch members count directly to avoid lazy loading issues
+        int memberCount = householdRepository.countMembersByHouseholdId(householdId);
+
+        HouseholdDto dto = HouseholdDto.builder()
+                .id(household.getId())
+                .name(household.getName())
+                .inviteCode(household.getInviteCode())
+                .memberCount(memberCount)
+                .build();
+
+        return ResponseEntity.ok(dto);
     }
 
     /**
