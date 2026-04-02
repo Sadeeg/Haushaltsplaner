@@ -617,8 +617,8 @@ export class ProfileComponent implements OnInit {
         email: 'sascha@example.com',
         displayName: 'Sascha',
         hasTelegram: false,
-        householdId: 1,
-        householdName: 'Deeg Haushalt'
+        householdId: null,
+        householdName: null
       };
       this.userStats = {
         totalPoints: 12,

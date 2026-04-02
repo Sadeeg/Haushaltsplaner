@@ -52,6 +52,9 @@ import { Task, TaskStatus } from '../../models/task.model';
                 </button>
                 <div class="task-content">
                   <span class="task-name">{{ task.name }}</span>
+                  @if (task.assignedUserName) {
+                    <span class="task-assigned">👤 {{ task.assignedUserName }}</span>
+                  }
                   <span class="task-meta">{{ task.points }} Punkt{{ task.points > 1 ? 'e' : '' }}</span>
                   @if (task.completionPeriodEnd) {
                     <span class="task-due">Fällig bis {{ task.completionPeriodEnd | date:'d.M.' }}</span>
@@ -73,6 +76,9 @@ import { Task, TaskStatus } from '../../models/task.model';
           @for (task of upcomingTasks; track task.id) {
             <div class="task-card">
               <span class="task-name">{{ task.name }}</span>
+              @if (task.assignedUserName) {
+                <span class="task-assigned-small">👤 {{ task.assignedUserName }}</span>
+              }
               <span class="task-due">{{ task.dueDate | date:'EEE, d.' }}</span>
             </div>
           }
@@ -254,6 +260,12 @@ import { Task, TaskStatus } from '../../models/task.model';
         font-size: 0.85rem;
       }
       
+      .task-assigned {
+        color: #1976d2;
+        font-size: 0.8rem;
+        font-weight: 500;
+      }
+      
       .task-due {
         color: #1976d2;
         font-size: 0.8rem;
@@ -289,10 +301,22 @@ import { Task, TaskStatus } from '../../models/task.model';
       border-radius: 8px;
       margin-bottom: 8px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      gap: 8px;
+      
+      .task-name {
+        font-weight: 500;
+        flex: 1;
+      }
+      
+      .task-assigned-small {
+        color: #666;
+        font-size: 0.75rem;
+      }
       
       .task-due {
         color: #666;
         font-size: 0.85rem;
+        white-space: nowrap;
       }
     }
   `]

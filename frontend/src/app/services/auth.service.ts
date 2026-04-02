@@ -112,6 +112,9 @@ export class AuthService {
       if (response.ok) {
         const user = await response.json();
         console.log('User from API:', user);
+        if (user.householdId && user.householdName) {
+          this.setHouseholdInfo(user.householdId, user.householdName);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch current user:', error);
@@ -126,13 +129,20 @@ export class AuthService {
       email: this.userEmail,
       displayName: this.username,
       hasTelegram: false,
-      householdId: 1,
-      householdName: 'Haushalt'
+      householdId: this._householdId,
+      householdName: this._householdName
     };
   }
 
+  private _householdId: number | null = null;
+  private _householdName: string | null = null;
+
   householdId(): number {
-    // For now, return 1 as default. In a real app, this would come from the backend after user creation
-    return 1;
+    return this._householdId || 0;
+  }
+
+  setHouseholdInfo(id: number, name: string) {
+    this._householdId = id;
+    this._householdName = name;
   }
 }
