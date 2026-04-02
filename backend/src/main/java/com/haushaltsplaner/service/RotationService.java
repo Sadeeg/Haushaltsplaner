@@ -157,8 +157,16 @@ public class RotationService {
     }
 
     private LocalDate getLastAssignedDate(Long userId, Long templateId) {
-        List<Task> userTasks = taskRepository.findByAssignedUserIdAndStatus(userId, TaskStatus.COMPLETED);
-        return userTasks.stream()
+        // Look at ALL tasks (completed and pending) to determine who was last assigned this task
+        List<Task> userTasks = taskRepository.findByAssignedUserIdAndStatus(userId, TaskStatus.PENDING);
+        List<Task> completedTasks = taskRepository.findByAssignedUserIdAndStatus(userId, TaskStatus.COMPLETED);
+        
+        // Combine both lists
+        List<Task> allTasks = new java.util.ArrayList<>();
+        allTasks.addAll(userTasks);
+        allTasks.addAll(completedTasks);
+        
+        return allTasks.stream()
                 .filter(t -> t.getTaskTemplate() != null && t.getTaskTemplate().getId().equals(templateId))
                 .map(Task::getDueDate)
                 .max(LocalDate::compareTo)
@@ -166,10 +174,10 @@ public class RotationService {
     }
 
     private int getTotalPoints(Long userId) {
-        List<Task> userTasks = taskRepository.findByAssignedUserIdAndStatus(userId, TaskStatus.COMPLETED);
-        return userTasks.stream()
-                .mapToInt(t -> t.getPoints() != null ? t.getPoints() : 0)
-                .sum();
+        // Use monthlyPoints field for fair monthly reset
+        return userRepository.findById(userId)
+                .map(u -> u.getMonthlyPoints() != null ? u.getMonthlyPoints() : 0)
+                .orElse(0);
     }
 
     private int getDefaultPeriodDays(TaskFrequency frequency) {
